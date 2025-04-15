@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using FMODUnity; // Add FMOD namespace
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class DiverMovement : MonoBehaviour
@@ -8,6 +9,10 @@ public class DiverMovement : MonoBehaviour
     public float moveSpeed = 3f;
     public float sinkSpeed = 0.5f; // Speed at which diver sinks when idle
     public float horizontalDrag = 3f; // Extra drag applied to horizontal movement when no input
+    
+    [Header("FMOD Sound Settings")]
+    public EventReference movementSoundEvent; // Updated to use EventReference type
+    private bool wasMovingLastFrame = false;
     
     [Header("Helmet Bubble Emitter")]
     [SerializeField] private Transform helmetBubbleEmitterTransform; // Reference to the helmet bubble emitter GameObject
@@ -52,6 +57,12 @@ public class DiverMovement : MonoBehaviour
     private Vector2 lastMoveDirection = Vector2.up;
     private Vector3 originalHelmetBubbleScale; // Store original scale to prevent stretching
     private bool helmetScaleInitialized = false;
+    
+    // Add this field to track knockback state
+    private bool isBeingKnockedBack = false;
+    private float knockbackEndTime = 0f;
+
+    private PlayerOxygen playerOxygen;
 
     void Awake()
     {
@@ -78,6 +89,8 @@ public class DiverMovement : MonoBehaviour
             Debug.LogWarning("[DiverMovement] TimeScale was 0, resetting to 1.0", this);
             Time.timeScale = 1.0f;
         }
+
+        playerOxygen = GetComponent<PlayerOxygen>();
     }
 
     private void InitializeParticleSystem()
@@ -285,6 +298,13 @@ public class DiverMovement : MonoBehaviour
         // Detect if we have any meaningful input
         hasInput = Mathf.Abs(moveX) > 0.1f || Mathf.Abs(moveY) > 0.1f;
         
+        // Play movement sound when player starts moving
+        if (hasInput && !wasMovingLastFrame)
+        {
+            RuntimeManager.PlayOneShot(movementSoundEvent);
+        }
+        wasMovingLastFrame = hasInput;
+        
         // Normalize for consistent speed in all directions
         moveInput = new Vector2(moveX, moveY).normalized;
         
@@ -300,6 +320,9 @@ public class DiverMovement : MonoBehaviour
         
         // Set the appropriate speed multiplier based on boost state
         currentSpeedMultiplier = isBoosting ? boostMultiplier : 1.0f;
+
+        // Update PlayerOxygen with boosting state
+        if (playerOxygen != null) playerOxygen.SetBoosting(isBoosting);
         
         // Update particle effects based on boosting state
         UpdateBubbleParticleSystem(wasBoosting);
@@ -424,6 +447,12 @@ public class DiverMovement : MonoBehaviour
         // Don't apply physics until we've spawned
         if (!hasSpawned) return;
         
+        // If being knocked back, don't apply player movement
+        if (IsBeingKnockedBack())
+        {
+            return;
+        }
+        
         if (hasInput)
         {
             // Calculate target velocity with boost if applicable
@@ -479,5 +508,64 @@ public class DiverMovement : MonoBehaviour
     public Vector2 GetMovementDirection()
     {
         return lastMoveDirection;
+    }
+
+    // Method to start a knockback effect from another script
+    public void SetKnockbackState(bool state, float duration = 0.5f)
+    {
+        isBeingKnockedBack = state;
+        
+        if (state)
+        {
+            // Set when knockback should end
+            knockbackEndTime = Time.time + duration;
+            Debug.Log($"DiverMovement: Knockback started for {duration} seconds");
+        }
+    }
+    
+    // Public accessor to check if player is being knocked back
+    public bool IsBeingKnockedBack()
+    {
+        // Automatically end knockback if time has elapsed
+        if (isBeingKnockedBack && Time.time > knockbackEndTime)
+        {
+            isBeingKnockedBack = false;
+        }
+        
+        return isBeingKnockedBack;
+    }
+
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        // Check if we're colliding with an enemy
+        if (collision.gameObject.CompareTag("BadFish"))
+        {
+            // Calculate push direction away from enemy
+            Vector2 pushDirection = ((Vector2)transform.position - (Vector2)collision.transform.position).normalized;
+            
+            // Enhance the vertical component to help push upward
+            if (pushDirection.y < 0.2f)
+            {
+                pushDirection.y = 0.2f;
+                pushDirection = pushDirection.normalized;
+            }
+            
+            // Get the distance to determine force strength
+            float distance = Vector2.Distance(transform.position, collision.transform.position);
+            
+            // Apply immediate force to separate - stronger when closer
+            if (rb != null)
+            {
+                // Only override knockback state if not from a major hit
+                bool canApplyForce = !IsBeingKnockedBack() || (Time.time > knockbackEndTime - 0.3f);
+                
+                if (canApplyForce)
+                {
+                    // Use stronger force (2.5f instead of 1.5f) and scale it based on proximity
+                    float forceMagnitude = 2.5f * (1.0f + (1.0f - Mathf.Clamp01(distance)));
+                    rb.AddForce(pushDirection * forceMagnitude, ForceMode2D.Impulse);
+                }
+            }
+        }
     }
 }

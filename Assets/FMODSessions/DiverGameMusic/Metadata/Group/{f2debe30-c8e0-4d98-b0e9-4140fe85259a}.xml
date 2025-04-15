@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.02.02.00">
+	<object class="MixerGroup" id="{f2debe30-c8e0-4d98-b0e9-4140fe85259a}">
+		<property name="name">
+			<value>Bullet Sounds</value>
+		</property>
+		<relationship name="effectChain">
+			<destination>{12476ae7-b77f-41fb-94cd-b3f8f5f18b8c}</destination>
+		</relationship>
+		<relationship name="panner">
+			<destination>{5a146a21-76dd-43ee-bc71-ebb923d0b8dc}</destination>
+		</relationship>
+		<relationship name="output">
+			<destination>{ce7241cc-9dda-4f7e-8e9c-8482f58a0494}</destination>
+		</relationship>
+	</object>
+	<object class="MixerBusEffectChain" id="{12476ae7-b77f-41fb-94cd-b3f8f5f18b8c}">
+		<relationship name="effects">
+			<destination>{7a23009e-5880-4c9c-a69d-8a13b9f13510}</destination>
+		</relationship>
+	</object>
+	<object class="MixerBusPanner" id="{5a146a21-76dd-43ee-bc71-ebb923d0b8dc}" />
+	<object class="MixerBusFader" id="{7a23009e-5880-4c9c-a69d-8a13b9f13510}" />
+</objects>

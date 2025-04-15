@@ -12,11 +12,11 @@ public class HelmetBubbleEmitter : MonoBehaviour
     [Header("Direction Settings")]
     [SerializeField] private Vector3 rightPosition = new Vector3(0, 0, 0);  // Emission position when facing right
     [SerializeField] private Vector3 leftPosition = new Vector3(0, 0, 0);   // Emission position when facing left
-    [SerializeField] private bool debugMode = false;  // Show debug visuals and log messages
+    [SerializeField] private bool debugMode = false;  // Show debug visuals
 
     [Header("Optional")]
     [SerializeField] private bool emitOnStart = true;        // Start emitting automatically
-    [SerializeField] private bool showDebugInfo = false;     // Print debug information
+    [SerializeField] private bool showDebugInfo = false;     // Enable to show detailed debug logs in console (WARNING: verbose!)
 
     private ParticleSystem particleSystem;
     private ParticleSystem.ShapeModule shapeModule;
@@ -98,11 +98,12 @@ public class HelmetBubbleEmitter : MonoBehaviour
         Vector3 emissionPos = isFacingRight ? rightPosition : leftPosition;
         shapeModule.position = emissionPos;
         
-        if (showDebugInfo)
-        {
-            Debug.Log($"HelmetBubbleEmitter: Player is now facing {(isFacingRight ? "RIGHT" : "LEFT")}, " +
-                      $"Position set to {shapeModule.position}", this);
-        }
+        // Comment out debug log
+        //if (showDebugInfo)
+        //{
+        //    Debug.Log($"HelmetBubbleEmitter: Player is now facing {(isFacingRight ? "RIGHT" : "LEFT")}, " +
+        //              $"Position set to {shapeModule.position}", this);
+        //}
     }
 
     /// <summary>
@@ -114,10 +115,11 @@ public class HelmetBubbleEmitter : MonoBehaviour
         {
             emissionCoroutine = StartCoroutine(EmitBubbles());
             
-            if (showDebugInfo)
-            {
-                Debug.Log($"HelmetBubbleEmitter: Started emitting bubbles. Burst Count: {burstCount}, Interval: {minInterval}-{maxInterval}s", this);
-            }
+            // Comment out debug log
+            //if (showDebugInfo)
+            //{
+            //    Debug.Log($"HelmetBubbleEmitter: Started emitting bubbles. Burst Count: {burstCount}, Interval: {minInterval}-{maxInterval}s", this);
+            //}
         }
     }
 
@@ -131,10 +133,11 @@ public class HelmetBubbleEmitter : MonoBehaviour
             StopCoroutine(emissionCoroutine);
             emissionCoroutine = null;
             
-            if (showDebugInfo)
-            {
-                Debug.Log("HelmetBubbleEmitter: Stopped emitting bubbles", this);
-            }
+            // Comment out debug log
+            //if (showDebugInfo)
+            //{
+            //    Debug.Log("HelmetBubbleEmitter: Stopped emitting bubbles", this);
+            //}
         }
     }
 
@@ -148,10 +151,11 @@ public class HelmetBubbleEmitter : MonoBehaviour
             // Wait a random time between the min and max interval
             float interval = Random.Range(minInterval, maxInterval);
             
-            if (showDebugInfo)
-            {
-                Debug.Log($"HelmetBubbleEmitter: Waiting {interval:F2} seconds until next burst", this);
-            }
+            // Comment out debug log
+            //if (showDebugInfo)
+            //{
+            //    Debug.Log($"HelmetBubbleEmitter: Waiting {interval:F2} seconds until next burst", this);
+            //}
             
             yield return new WaitForSeconds(interval);
             
@@ -169,10 +173,11 @@ public class HelmetBubbleEmitter : MonoBehaviour
                 
                 particleSystem.Emit(emitParams, burstCount);
                 
-                if (showDebugInfo)
-                {
-                    Debug.Log($"HelmetBubbleEmitter: Emitted burst of {burstCount} particles at position {worldEmitPosition}", this);
-                }
+                // Comment out debug log
+                //if (showDebugInfo)
+                //{
+                //    Debug.Log($"HelmetBubbleEmitter: Emitted burst of {burstCount} particles at position {worldEmitPosition}", this);
+                //}
             }
         }
     }
@@ -195,10 +200,11 @@ public class HelmetBubbleEmitter : MonoBehaviour
             
             particleSystem.Emit(emitParams, burstCount);
             
-            if (showDebugInfo)
-            {
-                Debug.Log($"HelmetBubbleEmitter: Manually emitted burst of {burstCount} particles at position {worldEmitPosition}", this);
-            }
+            // Comment out debug log
+            //if (showDebugInfo)
+            //{
+            //    Debug.Log($"HelmetBubbleEmitter: Manually emitted burst of {burstCount} particles at position {worldEmitPosition}", this);
+            //}
         }
     }
     

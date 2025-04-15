@@ -12,7 +12,7 @@ public class FlashlightController : MonoBehaviour
     public bool startOn = true; // Whether the flashlight starts on or off
     
     [Header("Debug")]
-    public bool showDebugInfo = true;
+    [SerializeField] private bool showDebugInfo = false; // Default to false to reduce console spam
     
     private Vector3 originalLocalPosition; // Store the original local position
     private Quaternion originalLocalRotation; // Store the original local rotation
@@ -67,10 +67,11 @@ public class FlashlightController : MonoBehaviour
                 playerSprite = FindObjectOfType<SpriteRenderer>();
             }
             
-            if (playerSprite != null && showDebugInfo)
-            {
-                Debug.Log($"Auto-found player sprite: {playerSprite.name}");
-            }
+            // Comment out debug log
+            //if (playerSprite != null && showDebugInfo)
+            //{
+            //    Debug.Log($"Auto-found player sprite: {playerSprite.name}");
+            //}
         }
         
         // Find ArmAim script if not assigned
@@ -81,22 +82,24 @@ public class FlashlightController : MonoBehaviour
             {
                 armAimScript = FindObjectOfType<ArmAim>();
             }
-            if (armAimScript != null && showDebugInfo)
-            {
-                Debug.Log($"Auto-found ArmAim script on: {armAimScript.name}");
-            }
+            // Comment out debug log
+            //if (armAimScript != null && showDebugInfo)
+            //{
+            //    Debug.Log($"Auto-found ArmAim script on: {armAimScript.name}");
+            //}
         }
         
-        if (showDebugInfo)
-        {
-            // Log initial state
-            Debug.Log($"FlashlightController initialized. Original position: {originalLocalPosition}, " +
-                      $"Original rotation: {originalLocalRotation.eulerAngles}");
-            if (playerSprite != null)
-                Debug.Log($"Using playerSprite: {playerSprite.name}, Initial flipX: {playerSprite.flipX}");
-            if (armAimScript != null)
-                Debug.Log($"Using armAimScript: {armAimScript.name}, Initial IsFacingRight: {armAimScript.IsFacingRight}");
-        }
+        // Comment out debug logs
+        //if (showDebugInfo)
+        //{
+        //    // Log initial state
+        //    Debug.Log($"FlashlightController initialized. Original position: {originalLocalPosition}, " +
+        //              $"Original rotation: {originalLocalRotation.eulerAngles}");
+        //    if (playerSprite != null)
+        //        Debug.Log($"Using playerSprite: {playerSprite.name}, Initial flipX: {playerSprite.flipX}");
+        //    if (armAimScript != null)
+        //        Debug.Log($"Using armAimScript: {armAimScript.name}, Initial IsFacingRight: {armAimScript.IsFacingRight}");
+        //}
     }
 
     void Update()
@@ -142,10 +145,11 @@ public class FlashlightController : MonoBehaviour
                     originalLocalRotation.eulerAngles.y + 180f, 
                     originalLocalRotation.eulerAngles.z);
                 
-                if (showDebugInfo)
-                {
-                    Debug.Log($"Flipping flashlight to LEFT. Position: {transform.localPosition}");
-                }
+                // Comment out debug log
+                //if (showDebugInfo)
+                //{
+                //    Debug.Log($"Flipping flashlight to LEFT. Position: {transform.localPosition}");
+                //}
             }
             else
             {
@@ -153,21 +157,22 @@ public class FlashlightController : MonoBehaviour
                 transform.localPosition = originalLocalPosition;
                 transform.localRotation = originalLocalRotation;
                 
-                if (showDebugInfo)
-                {
-                    Debug.Log($"Flipping flashlight to RIGHT. Position: {transform.localPosition}");
-                }
+                // Comment out debug log
+                //if (showDebugInfo)
+                //{
+                //    Debug.Log($"Flipping flashlight to RIGHT. Position: {transform.localPosition}");
+                //}
             }
         }
         
-        // Extra debugging to verify what's happening each second
-        if (showDebugInfo && Time.frameCount % 60 == 0)
-        {
-            string directionStr = shouldFlip ? "LEFT" : "RIGHT";
-            Debug.Log($"Current direction: {directionStr}, FlipX: {(playerSprite != null ? playerSprite.flipX.ToString() : "N/A")}, " +
-                      $"IsFacingRight: {(armAimScript != null ? armAimScript.IsFacingRight.ToString() : "N/A")}, " +
-                      $"Current position: {transform.localPosition}");
-        }
+        // REMOVED: This was the main source of the console spam
+        // if (showDebugInfo && Time.frameCount % 60 == 0)
+        // {
+        //     string directionStr = shouldFlip ? "LEFT" : "RIGHT";
+        //     Debug.Log($"Current direction: {directionStr}, FlipX: {(playerSprite != null ? playerSprite.flipX.ToString() : "N/A")}, " +
+        //               $"IsFacingRight: {(armAimScript != null ? armAimScript.IsFacingRight.ToString() : "N/A")}, " +
+        //               $"Current position: {transform.localPosition}");
+        // }
     }
     
     // Toggle the flashlight on or off
@@ -176,10 +181,11 @@ public class FlashlightController : MonoBehaviour
         isOn = !isOn;
         UpdateLightState();
         
-        if (showDebugInfo)
-        {
-            Debug.Log($"Flashlight toggled: {(isOn ? "ON" : "OFF")}");
-        }
+        // Comment out debug log
+        //if (showDebugInfo)
+        //{
+        //    Debug.Log($"Flashlight toggled: {(isOn ? "ON" : "OFF")}");
+        //}
     }
     
     // Update the light component based on current state
@@ -212,10 +218,11 @@ public class FlashlightController : MonoBehaviour
                 // This works, but will hide the flashlight sprite too if there is one
                 gameObject.SetActive(isOn);
                 
-                if (showDebugInfo)
-                {
-                    Debug.LogWarning("No Light component found. Toggling entire GameObject.");
-                }
+                // Comment out debug log
+                //if (showDebugInfo)
+                //{
+                //    Debug.LogWarning("No Light component found. Toggling entire GameObject.");
+                //}
             }
         }
     }

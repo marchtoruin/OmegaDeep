@@ -33,6 +33,8 @@ public class DiverShooter : MonoBehaviour
     private Vector3 originalFirePointLocalPosition;
     private Quaternion originalFirePointLocalRotation;
 
+    private PlayerOxygen playerOxygen;
+
     private void Awake()
     {
         // Get or add AudioSource if we have shoot sounds
@@ -66,6 +68,8 @@ public class DiverShooter : MonoBehaviour
                 Debug.Log($"DiverShooter: Auto-assigned shooterRoot to {shooterRoot.name}");
             }
         }
+
+        playerOxygen = GetComponentInParent<PlayerOxygen>();
     }
 
     private void Start()
@@ -253,6 +257,9 @@ public class DiverShooter : MonoBehaviour
         {
             Debug.DrawRay(spawnPosition, firePoint.right * 2f, Color.red, 0.5f);
         }
+
+        // Drain oxygen for shooting
+        if (playerOxygen != null) playerOxygen.DrainOxygenForShot();
     }
 
     // Determine if the player sprite is flipped

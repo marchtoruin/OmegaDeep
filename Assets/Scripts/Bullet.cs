@@ -12,6 +12,9 @@ public class Bullet : MonoBehaviour
     [SerializeField] private LayerMask collisionLayers = ~0; // Default to all layers
     [SerializeField] private float ignoreShooterTime = 0.3f; // Time to ignore shooter collisions (increased for safety)
     
+    [Header("Damage Settings")]
+    [SerializeField] private int damageAmount = 1; // How much damage a bullet does
+    
     private bool hasCollided = false; // Prevent multiple collisions
     private GameObject shooter; // Reference to the object that fired this bullet
     private float creationTime; // When this bullet was created
@@ -146,6 +149,9 @@ public class Bullet : MonoBehaviour
             Debug.Log($"Bullet collided with {collision.gameObject.name} on layer {LayerMask.LayerToName(collision.gameObject.layer)}", this);
         }
         
+        // Check if we hit a fish with health
+        ApplyDamage(collision.gameObject);
+        
         // Optionally spawn a hit effect at the collision point
         if (hitEffectPrefab != null && collision.contactCount > 0)
         {
@@ -182,6 +188,9 @@ public class Bullet : MonoBehaviour
             Debug.Log($"Bullet triggered with {other.gameObject.name} on layer {LayerMask.LayerToName(other.gameObject.layer)}", this);
         }
         
+        // Check if we hit a fish with health
+        ApplyDamage(other.gameObject);
+        
         // Optionally spawn a hit effect at the trigger point
         if (hitEffectPrefab != null)
         {
@@ -191,6 +200,23 @@ public class Bullet : MonoBehaviour
         
         // Destroy the bullet
         Destroy(gameObject);
+    }
+    
+    // Apply damage to any target with a badFishHealth component
+    private void ApplyDamage(GameObject target)
+    {
+        // Check for badFishHealth component
+        badFishHealth fishHealth = target.GetComponent<badFishHealth>();
+        if (fishHealth != null)
+        {
+            // Apply damage to the fish
+            fishHealth.TakeDamage(damageAmount);
+            
+            if (debugCollisions)
+            {
+                Debug.Log($"Bullet applied {damageAmount} damage to {target.name}", this);
+            }
+        }
     }
     
     private bool ShouldIgnoreCollision(GameObject other)
@@ -270,6 +296,9 @@ public class Bullet : MonoBehaviour
                     Debug.Log($"Bullet detected collision with {hit.collider.gameObject.name} via CircleCast", this);
                     Debug.DrawLine(transform.position, hit.point, Color.yellow, 1f);
                 }
+                
+                // Check if we hit a fish with health via raycast
+                ApplyDamage(hit.collider.gameObject);
                 
                 // Optionally spawn a hit effect
                 if (hitEffectPrefab != null)

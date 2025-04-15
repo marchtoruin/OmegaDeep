@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.02.02.00">
+	<object class="AudioFile" id="{2805cc5f-4d40-438a-b218-f68d42dc1a82}">
+		<property name="assetPath">
+			<value>ambience_underwater.wav</value>
+		</property>
+		<property name="isStreaming">
+			<value>true</value>
+		</property>
+		<property name="frequencyInKHz">
+			<value>44.0999985</value>
+		</property>
+		<property name="channelCount">
+			<value>2</value>
+		</property>
+		<property name="length">
+			<value>24</value>
+		</property>
+		<relationship name="masterAssetFolder">
+			<destination>{635026fa-0e1f-4d79-8922-5d09a192234d}</destination>
+		</relationship>
+	</object>
+</objects>

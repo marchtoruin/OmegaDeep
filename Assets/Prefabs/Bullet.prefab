@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 7246053561454996452}
   - component: {fileID: 1522264856767404634}
   - component: {fileID: 1338281025460365724}
+  - component: {fileID: -1055244306322232217}
   m_Layer: 0
   m_Name: Bullet
   m_TagString: Untagged
@@ -267,3 +268,40 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hitEffectPrefab: {fileID: 0}
+  debugCollisions: 1
+  collisionLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  ignoreShooterTime: 0.1
+  damageAmount: 2
+--- !u!114 &-1055244306322232217
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2159681856183905614}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a6610d2e704f1648819acc8d7460285, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  CollisionTag: 
+  EventReference:
+    Guid:
+      Data1: -354249568
+      Data2: 1204777019
+      Data3: 377185153
+      Data4: -1148573507
+    Path: event:/BulletLaser
+  Event: 
+  EventPlayTrigger: 1
+  EventStopTrigger: 0
+  AllowFadeout: 1
+  TriggerOnce: 0
+  Preload: 0
+  NonRigidbodyVelocity: 0
+  Params: []
+  OverrideAttenuation: 0
+  OverrideMinDistance: 1
+  OverrideMaxDistance: 20

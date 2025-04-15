@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.02.02.00">
+	<object class="MixerGroup" id="{dcb45f3f-c533-4924-82f9-3e1dd10a1435}">
+		<property name="name">
+			<value>Airboost Group</value>
+		</property>
+		<relationship name="effectChain">
+			<destination>{6b45da86-e1ff-4e78-8dec-598f6aa1c4f2}</destination>
+		</relationship>
+		<relationship name="panner">
+			<destination>{4663f111-8b51-43f6-8fdf-898622d2420d}</destination>
+		</relationship>
+		<relationship name="output">
+			<destination>{b320cecf-b3f0-4ff0-883c-2c5228438ead}</destination>
+		</relationship>
+	</object>
+	<object class="MixerBusEffectChain" id="{6b45da86-e1ff-4e78-8dec-598f6aa1c4f2}">
+		<relationship name="effects">
+			<destination>{f3f2f307-9acb-4292-911a-93de93048f8b}</destination>
+			<destination>{ae5f570a-8d0d-4286-a661-6224a85078cb}</destination>
+		</relationship>
+	</object>
+	<object class="MixerBusPanner" id="{4663f111-8b51-43f6-8fdf-898622d2420d}" />
+	<object class="ThreeEQEffect" id="{f3f2f307-9acb-4292-911a-93de93048f8b}">
+		<property name="bypass">
+			<value>true</value>
+		</property>
+		<property name="lowGain">
+			<value>-8.5</value>
+		</property>
+		<property name="midGain">
+			<value>-24</value>
+		</property>
+		<property name="highGain">
+			<value>-44</value>
+		</property>
+	</object>
+	<object class="MixerBusFader" id="{ae5f570a-8d0d-4286-a661-6224a85078cb}" />
+</objects>

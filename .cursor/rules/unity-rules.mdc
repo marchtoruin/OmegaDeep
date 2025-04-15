@@ -1,0 +1,25 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+- I am using Unity 2022 LTS. Always write code compatible with this version and follow current Unity 2022 best practices.
+- Never assume anything about my scene setup, GameObjects, component hierarchy, or system architecture.
+- Before writing a script, always ask:
+    - What the script is for and where it will be used.
+    - The exact name of the GameObject the script will be attached to.
+    - Which components already exist on that GameObject.
+    - Whether the script needs to interact with existing systems (e.g., UI, FMOD, input, player, manager scripts).
+- Do not include logic that creates or modifies GameObjects or components in the scene — I will handle all object creation and setup myself.
+- Only write scripts that I can manually attach to existing GameObjects.
+- Never include placeholder logic, animations, or audio unless I specifically ask for it.
+- If a script references an asset (e.g., sprite, FMOD event, UI element), ask me for the correct name or path before referencing it in code.
+- Never assume default variable names, tags, or layer names. Ask me first.
+- If a script depends on other scripts or managers, confirm with me whether those exist and what they're named.
+- Only implement what I specifically ask for. Do not add extra functionality unless I approve it first.
+- Try to be less verbose but effective in communication
+
+
+- You can @ files here
+- You can use markdown but dont have to
