@@ -383,6 +383,7 @@ GameObject:
   - component: {fileID: 3424882439427422947}
   - component: {fileID: 1910292225804514736}
   - component: {fileID: 1320382651103366605}
+  - component: {fileID: 1747997199735396038}
   m_Layer: 5
   m_Name: DeathPanel
   m_TagString: Untagged
@@ -397,7 +398,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4765502313340228574}
-  m_LocalRotation: {x: -0, y: -0.00000053644175, z: -0, w: -1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: -1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -464,6 +465,37 @@ MonoBehaviour:
   deathMessageText: {fileID: 5204594526670708521}
   deathMessage: You died!
   respawnButtonText: Respawn
+--- !u!114 &1747997199735396038
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4765502313340228574}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a6610d2e704f1648819acc8d7460285, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  CollisionTag: 
+  EventReference:
+    Guid:
+      Data1: -1634179001
+      Data2: 1310634289
+      Data3: 1055876028
+      Data4: -1587504210
+    Path: event:/DeathYell
+  Event: 
+  EventPlayTrigger: 1
+  EventStopTrigger: 0
+  AllowFadeout: 1
+  TriggerOnce: 0
+  Preload: 0
+  NonRigidbodyVelocity: 0
+  Params: []
+  OverrideAttenuation: 0
+  OverrideMinDistance: 1
+  OverrideMaxDistance: 20
 --- !u!1 &5586908027637006476
 GameObject:
   m_ObjectHideFlags: 0

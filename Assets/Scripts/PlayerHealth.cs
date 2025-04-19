@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class PlayerHealth : MonoBehaviour
 {
@@ -13,8 +14,6 @@ public class PlayerHealth : MonoBehaviour
     public PlayerHealthBar healthBar; // Made public for easier external assignment
     
     [Header("Enemy Collision")]
-    [SerializeField] private string enemyTag = "BadFish"; // Tag of enemy fish
-    [SerializeField] private int collisionDamage = 10; // Damage taken when colliding with enemy
     [SerializeField] private float knockbackForce = 2000f; // Increased knockback force
     [SerializeField] private float knockbackDuration = 0.2f; // How long knockback lasts
     [SerializeField] private float invulnerabilityDuration = 1.5f; // Invulnerability time after being hit
@@ -31,6 +30,10 @@ public class PlayerHealth : MonoBehaviour
     
     [Header("Death Sink Settings")]
     [SerializeField] private float deathSinkSpeed = 1.5f; // How fast the player sinks after death
+    
+    [Header("Effects")]
+    [SerializeField] private ParticleSystem bleedingEffectParticles; // Assign Particle System component from Player's child
+    [SerializeField] private Animator bloodSplatAnimator; // Assign Animator component from bloodSpatter_1 child
     
     // Current health tracking
     private int currentHealth;
@@ -143,12 +146,18 @@ public class PlayerHealth : MonoBehaviour
         HandleEnemyHit(collider.gameObject);
     }
 
-    // Centralized enemy hit logic
-    private void HandleEnemyHit(GameObject enemy)
+    // Centralized enemy hit logic with optional damage parameter
+    private void HandleEnemyHit(GameObject enemy, int customDamage = 0)
     {
-        // Check if collided with enemy and player is not invulnerable
-        if (!isInvulnerable && enemy.CompareTag(enemyTag))
+        Debug.Log($"[PlayerHealth] Collision detected with {enemy.name}", enemy);
+        
+        // Check if this is an enemy by looking for either EnemyCollision or JellyfishHealth component
+        bool isEnemy = enemy.GetComponent<EnemyCollision>() != null || 
+                       enemy.GetComponent<JellyfishHealth>() != null;
+        
+        if (!isInvulnerable && isEnemy)
         {
+            Debug.Log("[PlayerHealth] Player not invulnerable, applying damage and effects.");
             // Get direction from enemy to player for knockback
             Vector2 knockbackDirection = (transform.position - enemy.transform.position).normalized;
             
@@ -163,32 +172,63 @@ public class PlayerHealth : MonoBehaviour
                 Debug.DrawRay(transform.position, knockbackDirection * 3f, Color.red, 2f);
             }
             
-            // Apply damage
-            TakeDamage(collisionDamage);
-            
-            // Check if the enemy has its own EnemyCollision component
-            // If it does, let it handle the knockback instead
-            EnemyCollision enemyCollision = enemy.GetComponent<EnemyCollision>();
-            if (enemyCollision == null)
+            // Get damage amount from the enemy if it has EnemyCollision component
+            int damageAmount = customDamage;
+            if (damageAmount <= 0)
             {
-                // Only apply our own knockback if the enemy doesn't have an EnemyCollision component
-                ApplyKnockback(knockbackDirection);
-                
-                if (showDebugMessages)
+                EnemyCollision enemyCollision = enemy.GetComponent<EnemyCollision>();
+                if (enemyCollision != null)
                 {
-                    Debug.Log("Using PlayerHealth knockback (enemy has no EnemyCollision component)");
+                    // Get damage amount from the enemy component
+                    damageAmount = enemyCollision.GetDamageAmount();
                 }
+                else
+                {
+                    // Default damage if enemy doesn't specify
+                    damageAmount = 10;
+                    Debug.LogWarning($"Enemy {enemy.name} has no EnemyCollision component - using default damage of 10", this);
+                }
+            }
+            
+            // Apply damage
+            TakeDamage(damageAmount);
+            
+            // Start the bleeding particle effect
+            if (bleedingEffectParticles != null)
+            {
+                Debug.Log("[PlayerHealth] Playing Bleeding Effect Particles.", bleedingEffectParticles);
+                bleedingEffectParticles.Play();
             }
             else
             {
-                if (showDebugMessages)
-                {
-                    Debug.Log("Skipping PlayerHealth knockback as enemy has EnemyCollision component");
-                }
+                Debug.LogWarning("[PlayerHealth] Bleeding Effect Particles system is not assigned in the Inspector!", this);
+            }
+            
+            // Trigger the blood splat animation
+            if (bloodSplatAnimator != null)
+            {
+                // Use the exact name of the trigger parameter in your Animator Controller
+                bloodSplatAnimator.SetTrigger("Splat"); 
+                Debug.Log("[PlayerHealth] Triggering Blood Splat Animation.");
+            }
+            else
+            {
+                Debug.LogWarning("[PlayerHealth] Blood Splat Animator is not assigned!", this);
+            }
+            
+            // Always apply knockback using our unified knockbackForce
+            ApplyKnockback(knockbackDirection);
+            if (showDebugMessages)
+            {
+                Debug.Log($"Applied unified knockback force: {knockbackForce}");
             }
             
             // Make player briefly invulnerable
             StartInvulnerability();
+        }
+        else if (isInvulnerable && isEnemy)
+        {
+            Debug.Log("[PlayerHealth] Player is invulnerable, ignoring hit.");
         }
     }
     
@@ -201,6 +241,12 @@ public class PlayerHealth : MonoBehaviour
         {
             // Stop any existing knockback
             StopKnockback();
+            
+            // Disable player control during knockback
+            if (diverMovement != null)
+            {
+                diverMovement.SetKnockbackState(true, knockbackDuration);
+            }
             
             // Apply immediate force
             rb.velocity = Vector2.zero; // Reset velocity first
@@ -280,6 +326,13 @@ public class PlayerHealth : MonoBehaviour
         
         isInvulnerable = false;
         invulnerabilityCoroutine = null;
+
+        // Stop the bleeding particle effect when invulnerability ends
+        if (bleedingEffectParticles != null)
+        {
+            Debug.Log("[PlayerHealth] Stopping Bleeding Effect Particles.");
+            bleedingEffectParticles.Stop(); // Stops emission, allows existing particles to fade
+        }
     }
     
     /// <summary>
@@ -605,146 +658,11 @@ public class PlayerHealth : MonoBehaviour
     {
         if (!isDead) return;
         
-        // Reset time scale to normal using the stored original value
+        // Reset time scale and fixed delta time to defaults before reloading scene
         Time.timeScale = 1.0f;
-        Time.fixedDeltaTime = originalFixedDeltaTime; // Reset fixed timestep using stored original
-        Debug.Log($"Reset time to normal speed: timeScale = {Time.timeScale}, fixedDeltaTime = {Time.fixedDeltaTime}");
-        
-        // Remove screen dimming effect
-        if (screenDimOverlay != null)
-        {
-            // Fade out the dim effect
-            Image dimImage = screenDimOverlay.GetComponentInChildren<Image>();
-            if (dimImage != null)
-            {
-                dimImage.color = Color.clear;
-            }
-            
-            // Disable the overlay
-            screenDimOverlay.SetActive(false);
-            Debug.Log("Screen dimming effect removed");
-        }
-        
-        // Reset all fish in the scene
-        ResetAllFish();
-        
-        // Reset health
-        currentHealth = maxHealth;
-        
-        // Stop any running coroutines first
-        if (flashCoroutine != null)
-        {
-            StopCoroutine(flashCoroutine);
-            flashCoroutine = null;
-        }
-        
-        if (invulnerabilityCoroutine != null)
-        {
-            StopCoroutine(invulnerabilityCoroutine);
-            invulnerabilityCoroutine = null;
-        }
-        
-        // Reset sprite color to normal
-        if (spriteRenderer != null)
-        {
-            spriteRenderer.color = Color.white;
-        }
-        
-        // Update the health bar
-        UpdateHealthBar();
-        
-        // Move player to spawn position
-        transform.position = respawnPosition;
-        
-        // Reset physics and reactivate Rigidbody2D
-        if (rb != null)
-        {
-            // Re-enable physics
-            rb.isKinematic = false;
-            
-            // Reset velocity
-            rb.velocity = Vector2.zero;
-            
-            Debug.Log("Reset Rigidbody2D to non-kinematic for respawn");
-        }
-        
-        // Hide death UI
-        if (deathUIPanel != null)
-        {
-            deathUIPanel.SetActive(false);
-        }
-        
-        // Re-enable player controls
-        if (disableControlsOnDeath && diverMovement != null)
-        {
-            diverMovement.enabled = true;
-        }
-        
-        // Make player briefly invulnerable
-        StartInvulnerability();
-        
-        // Reset death state
-        isDead = false;
-        
-        // Re-enable arm/aim scripts on respawn
-        if (diverShooter != null) diverShooter.enabled = true;
-        if (armAim != null) armAim.enabled = true;
-        
-        if (showDebugMessages)
-        {
-            Debug.Log("Player respawned at " + respawnPosition);
-        }
-        
-        // Refill oxygen to max
-        if (playerOxygen != null)
-            playerOxygen.RefillOxygen(playerOxygen.GetMaxOxygen());
-    }
-    
-    /// <summary>
-    /// Resets all fish in the scene when player respawns
-    /// </summary>
-    private void ResetAllFish()
-    {
-        // Find all bad fish in the scene
-        BadFishAI[] allFish = FindObjectsOfType<BadFishAI>();
-        int resetCount = 0;
-        
-        foreach (BadFishAI fish in allFish)
-        {
-            // Reset each fish to its starting state
-            StartCoroutine(RespawnFish(fish));
-            resetCount++;
-        }
-        
-        Debug.Log($"Resetting {resetCount} fish in the scene");
-    }
-    
-    /// <summary>
-    /// Coroutine to respawn a fish with a slight delay to prevent all fish from respawning at once
-    /// </summary>
-    private IEnumerator RespawnFish(BadFishAI fish)
-    {
-        // Only do this if the fish is valid
-        if (fish != null)
-        {
-            // Get the badFishHealth component
-            badFishHealth healthComponent = fish.GetComponent<badFishHealth>();
-            
-            // Respawn with a small random delay
-            yield return new WaitForSeconds(Random.Range(0.1f, 0.5f));
-            
-            // Stop all coroutines on the fish
-            fish.StopAllCoroutines();
-            
-            // Call a method to reset the fish
-            fish.SendMessage("ResetToInitialState", SendMessageOptions.DontRequireReceiver);
-            
-            // Reset the fish's health if available
-            if (healthComponent != null)
-            {
-                healthComponent.SendMessage("ResetHealth", SendMessageOptions.DontRequireReceiver);
-            }
-        }
+        Time.fixedDeltaTime = 0.02f;
+        // Reload the current scene for a full reset
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
     
     /// <summary>
@@ -843,5 +761,11 @@ public class PlayerHealth : MonoBehaviour
         }
         
         Debug.Log($"Triggered feeding frenzy for {frenziedFishCount} fish near the player");
+    }
+
+    public void ForceDie()
+    {
+        currentHealth = 0;
+        Die();
     }
 } 

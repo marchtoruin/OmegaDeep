@@ -1,5 +1,82 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3122315040514809863
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2216891131365979852}
+  - component: {fileID: 618670702765851188}
+  m_Layer: 6
+  m_Name: CollisionNoTrigger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2216891131365979852
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3122315040514809863}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 53064138758549543}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!61 &618670702765851188
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3122315040514809863}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  serializedVersion: 2
+  m_Size: {x: 1, y: 1}
+  m_EdgeRadius: 0
 --- !u!1 &4176932002911336551
 GameObject:
   m_ObjectHideFlags: 0
@@ -12,7 +89,7 @@ GameObject:
   - component: {fileID: 3206564165152881257}
   - component: {fileID: 7728897894663357903}
   - component: {fileID: 2308356173435254703}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: badFishHealthBar
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -114,7 +191,7 @@ GameObject:
   - component: {fileID: 611243845020658313}
   - component: {fileID: 8671165362871225955}
   - component: {fileID: 9091470099100357452}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Fill
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -193,10 +270,9 @@ GameObject:
   - component: {fileID: 6846584681348484814}
   - component: {fileID: 2207591534212580816}
   - component: {fileID: 1514963294214555974}
-  - component: {fileID: 7946506976164215267}
   - component: {fileID: 3104156153026912654}
   - component: {fileID: 5717446968364870352}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: badFish01
   m_TagString: BadFish
   m_Icon: {fileID: 0}
@@ -211,12 +287,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5131843546743424323}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -1, z: -0, w: 0.00000026822087}
+  m_LocalRotation: {x: 0, y: -1, z: 0, w: 0}
   m_LocalPosition: {x: -10.41, y: 41.9629, z: 0}
-  m_LocalScale: {x: 2.237, y: 2.237, z: 2.237}
+  m_LocalScale: {x: -2.237, y: 2.237, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3509660813369097734}
+  - {fileID: 6939309963641211408}
+  - {fileID: 2216891131365979852}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: -180, z: 0}
 --- !u!212 &7856751493953074916
@@ -258,7 +336,7 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 1023559861
-  m_SortingLayer: 3
+  m_SortingLayer: 5
   m_SortingOrder: 0
   m_Sprite: {fileID: 21300000, guid: a8713e8afb7b46e4e96989b9c18fbf8f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -284,8 +362,8 @@ Rigidbody2D:
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
   m_Mass: 1
-  m_LinearDrag: 0
-  m_AngularDrag: 0.05
+  m_LinearDrag: 0.1
+  m_AngularDrag: 0.1
   m_GravityScale: 0
   m_Material: {fileID: 0}
   m_IncludeLayers:
@@ -296,7 +374,7 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 4
 --- !u!61 &1767324560514251056
 BoxCollider2D:
@@ -357,11 +435,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 10
   showDebugMessages: 0
+  isBoss: 0
+  bossHealthMultiplier: 3
+  bossHealthBarColor: {r: 1, g: 0.2, b: 0.2, a: 1}
+  bossHealthBarScale: 1.5
+  bossMaxDamagePercent: 0.2
+  bossDamageMultiplier: 2
   healthBarFill: {fileID: 9091470099100357452}
   healthBarObject: {fileID: 4176932002911336551}
   healthBarVisibilityDuration: 3
   alwaysShowHealthBar: 0
   damageEffectPrefab: {fileID: 0}
+  impactSound: {fileID: 0}
 --- !u!95 &2207591534212580816
 Animator:
   serializedVersion: 5
@@ -398,27 +483,6 @@ MonoBehaviour:
   damageAmount: 10
   damageInterval: 1
   showDebugMessages: 0
---- !u!114 &7946506976164215267
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5131843546743424323}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eda2fd4f0282ae54593d5151ee5879f5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  movementSpeed: 2
-  usePatrolPoints: 0
-  patrolPoints: []
-  waitTimeAtPoint: 1
-  modifyRigidbodyOnStart: 1
-  mass: 10
-  linearDrag: 3
-  angularDrag: 2
-  bodyType: 1
 --- !u!114 &3104156153026912654
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -432,9 +496,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damageAmount: 10
-  knockbackForce: 10
   showDebugInfo: 0
-  knockbackDuration: 0.5
   repulsionCheckDistance: 1.5
   repulsionForce: 5
   playerLayerMask:
@@ -459,17 +521,108 @@ MonoBehaviour:
     m_Bits: 0
   showDebugGizmos: 1
   patrolSpeed: 3
-  chaseSpeed: 6
+  chaseSpeed: 7
   rotationSpeed: 3
   minDistanceToWaypoint: 0.5
   minDistanceToPlayer: 1
+  bodyType: 0
+  collisionDetectionMode: 1
   patrolPoints: []
-  patrolRadius: 5
+  patrolRadius: 7
   patrolPointWaitTime: 1.5
   useRandomPatrolPoints: 1
   maxRandomPatrolPoints: 4
   artworkFacesRight: 1
-  debugOrientation: 0
+  debugOrientation: 1
+  isBoss: 0
+  bossSpeedMultiplier: 1.2
+  bossAggroRangeMultiplier: 1.5
+  bossChaseTimeMultiplier: 2
+  bossColor: {r: 1, g: 0.5, b: 0.5, a: 1}
+  showBossDebugLogs: 1
+  collisionAvoidanceRadius: 3.26
+  collisionAvoidanceForce: 5
+  collisionLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  raycastSpacing: 0.5
+--- !u!1 &5963504577378188210
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6939309963641211408}
+  - component: {fileID: 2257406169385293248}
+  - component: {fileID: 7833818946080435743}
+  m_Layer: 6
+  m_Name: ImpactSoundTrigger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6939309963641211408
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5963504577378188210}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 53064138758549543}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2257406169385293248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5963504577378188210}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9a6610d2e704f1648819acc8d7460285, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  CollisionTag: 
+  EventReference:
+    Guid:
+      Data1: -1481659053
+      Data2: 1245528803
+      Data3: -149591663
+      Data4: 854363689
+    Path: event:/EnemyHit
+  Event: 
+  EventPlayTrigger: 0
+  EventStopTrigger: 0
+  AllowFadeout: 1
+  TriggerOnce: 0
+  Preload: 0
+  NonRigidbodyVelocity: 0
+  Params: []
+  OverrideAttenuation: 0
+  OverrideMinDistance: 1
+  OverrideMaxDistance: 20
+--- !u!114 &7833818946080435743
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5963504577378188210}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 904a3b680389f0c4ca083ab67b25ec3a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  emitter: {fileID: 2257406169385293248}
 --- !u!1 &6625053854572121901
 GameObject:
   m_ObjectHideFlags: 0
@@ -481,7 +634,7 @@ GameObject:
   - component: {fileID: 6059779867462922701}
   - component: {fileID: 3298789322739922459}
   - component: {fileID: 6595296478498856720}
-  m_Layer: 5
+  m_Layer: 6
   m_Name: Background
   m_TagString: Untagged
   m_Icon: {fileID: 0}

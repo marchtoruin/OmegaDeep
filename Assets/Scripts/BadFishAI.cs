@@ -18,6 +18,10 @@ public class BadFishAI : MonoBehaviour
     [SerializeField] private float minDistanceToWaypoint = 0.5f;
     [SerializeField] private float minDistanceToPlayer = 1f; // Don't get too close to player
     
+    [Header("Physics Settings")]
+    [SerializeField] private RigidbodyType2D bodyType = RigidbodyType2D.Dynamic;
+    [SerializeField] private CollisionDetectionMode2D collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+    
     [Header("Patrol Settings")]
     [SerializeField] private Vector2[] patrolPoints; // Manual patrol points if needed
     [SerializeField] private float patrolRadius = 5f; // Automatic patrol radius from spawn
@@ -26,7 +30,7 @@ public class BadFishAI : MonoBehaviour
     [SerializeField] private int maxRandomPatrolPoints = 4; // Max number of random patrol points
     
     [Header("Appearance Settings")]
-    [SerializeField] private bool artworkFacesRight = true; // Set based on which way your sprite artwork naturally faces
+    [SerializeField] public bool artworkFacesRight = true; // Set based on which way your sprite artwork naturally faces
     [SerializeField] private bool debugOrientation = false; // Turn this on to debug orientation issues
     
     [Header("Boss Configuration")]
@@ -68,17 +72,84 @@ public class BadFishAI : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        
+        // Log initial Rigidbody2D state
+        if (rb != null)
+        {
+            Debug.Log($"BadFishAI Awake - INITIAL Rigidbody2D state: Type={rb.bodyType}, GameObject={gameObject.name}", this);
+        }
+        
         healthComponent = GetComponent<badFishHealth>();
         spriteRenderer = GetComponentInChildren<SpriteRenderer>();
         
         // Store spawn position for patrol radius
         startPosition = transform.position;
+        
+        // FORCE Dynamic body type for proper collisions with static objects
+        if (rb != null)
+        {
+            // Override inspector settings to ensure Dynamic mode
+            Debug.Log($"BadFishAI Awake - Setting Rigidbody2D from {rb.bodyType} to Dynamic", this);
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            rb.collisionDetectionMode = collisionDetectionMode;
+            
+            // Log what we did
+            Debug.Log($"BadFishAI: FORCING Rigidbody2D to Dynamic mode for proper collisions with static objects", this);
+            
+            // Start watching for bodyType changes
+            StartCoroutine(MonitorBodyTypeChanges());
+        }
+    }
+    
+    // Coroutine to watch for changes to the Rigidbody2D bodyType
+    private IEnumerator MonitorBodyTypeChanges()
+    {
+        if (rb == null) yield break;
+        
+        RigidbodyType2D lastType = rb.bodyType;
+        
+        while (true)
+        {
+            // Check if bodyType changed
+            if (rb.bodyType != lastType)
+            {
+                Debug.LogWarning($"BadFishAI: Rigidbody2D bodyType CHANGED from {lastType} to {rb.bodyType} on {gameObject.name}", this);
+                
+                // Capture stack trace to find what's changing it
+                string stackTrace = System.Environment.StackTrace;
+                Debug.LogWarning($"Stack trace at bodyType change: {stackTrace}", this);
+                
+                // Update last known type
+                lastType = rb.bodyType;
+                
+                // Force back to Dynamic if needed
+                if (rb.bodyType != RigidbodyType2D.Dynamic)
+                {
+                    Debug.LogWarning($"BadFishAI: Forcing Rigidbody2D back to Dynamic mode", this);
+                    rb.bodyType = RigidbodyType2D.Dynamic;
+                }
+            }
+            
+            yield return new WaitForSeconds(0.1f); // Check every 10th of a second
+        }
     }
     
     void Start()
     {
         // Get components
-        rb = GetComponent<Rigidbody2D>();
+        // NOTE: We already get the Rigidbody2D in Awake, don't override it again
+        // rb = GetComponent<Rigidbody2D>();
+        
+        // Check for component conflicts
+        CheckForConflictingComponents();
+        
+        // Re-check Rigidbody settings at Start in case something changed them
+        if (rb != null && rb.bodyType != RigidbodyType2D.Dynamic)
+        {
+            Debug.LogWarning($"BadFishAI: Rigidbody2D bodyType changed since Awake. Was: {rb.bodyType}, resetting to Dynamic", this);
+            rb.bodyType = RigidbodyType2D.Dynamic;
+        }
+        
         healthComponent = GetComponent<badFishHealth>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         
@@ -87,6 +158,9 @@ public class BadFishAI : MonoBehaviour
         
         // Store starting position
         startPosition = transform.position;
+        
+        // Validate colliders for physics collisions
+        ValidateColliders();
         
         // Synchronize boss status with health component
         if (healthComponent != null)
@@ -122,6 +196,35 @@ public class BadFishAI : MonoBehaviour
         if (debugOrientation)
         {
             Debug.Log($"Fish initialized. Artwork naturally faces: {(artworkFacesRight ? "RIGHT" : "LEFT")}", this);
+        }
+    }
+    
+    private void CheckForConflictingComponents()
+    {
+        // Check for EnemyMovement component which might conflict with this script
+        EnemyMovement enemyMovement = GetComponent<EnemyMovement>();
+        if (enemyMovement != null)
+        {
+            Debug.LogError($"CONFLICT DETECTED: {gameObject.name} has both BadFishAI and EnemyMovement components!", this);
+            Debug.LogError("EnemyMovement sets Rigidbody2D to Kinematic, which prevents collisions with static objects.", this);
+            Debug.LogError("Solution: Remove the EnemyMovement component or disable its 'modifyRigidbodyOnStart' property.", this);
+        }
+        
+        // Check for other scripts that might modify the Rigidbody2D
+        MonoBehaviour[] allComponents = GetComponents<MonoBehaviour>();
+        foreach (MonoBehaviour component in allComponents)
+        {
+            // Skip this component and known ones
+            if (component == this || component is EnemyMovement) continue;
+            
+            string componentName = component.GetType().Name.ToLower();
+            if (componentName.Contains("movement") || 
+                componentName.Contains("physics") || 
+                componentName.Contains("rigidbody") || 
+                componentName.Contains("motor"))
+            {
+                Debug.LogWarning($"Potential conflict: {gameObject.name} has {component.GetType().Name} which might also modify Rigidbody2D settings.", this);
+            }
         }
     }
     
@@ -819,6 +922,13 @@ public class BadFishAI : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // Ensure body type remains Dynamic (in case some other script changes it)
+        if (rb != null && rb.bodyType != RigidbodyType2D.Dynamic)
+        {
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            Debug.LogWarning($"BadFishAI: Something changed the Rigidbody2D type to {rb.bodyType}. Restoring to Dynamic.", this);
+        }
+        
         // Handle collision avoidance
         if (rb != null && rb.velocity.sqrMagnitude > 0)
         {
@@ -898,6 +1008,188 @@ public class BadFishAI : MonoBehaviour
             {
                 Gizmos.color = Color.blue;
                 Gizmos.DrawRay(transform.position, rb.velocity.normalized * collisionAvoidanceRadius);
+            }
+        }
+    }
+    
+    // Log all physical collisions with the fish
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        // Log detailed collision information
+        string layerName = LayerMask.LayerToName(collision.gameObject.layer);
+        Debug.Log($"BadFishAI: PHYSICAL COLLISION with {collision.gameObject.name} on layer {layerName}", this);
+        
+        // Additional details about the collision
+        if (collision.contactCount > 0)
+        {
+            ContactPoint2D contact = collision.GetContact(0);
+            Debug.Log($"  - Contact point: {contact.point}, Normal: {contact.normal}", this);
+            Debug.Log($"  - Relative velocity: {collision.relativeVelocity}, Rigidbody type: {(rb != null ? rb.bodyType.ToString() : "No Rigidbody")}", this);
+        }
+    }
+
+    private void ValidateColliders()
+    {
+        // Get all colliders on this GameObject and its children
+        Collider2D[] allColliders = GetComponentsInChildren<Collider2D>();
+        
+        // Check if we have any colliders at all
+        if (allColliders.Length == 0)
+        {
+            Debug.LogError($"BadFishAI on {gameObject.name}: NO COLLIDERS FOUND! Fish will pass through obstacles.", this);
+            return;
+        }
+        
+        // Check if we have at least one non-trigger collider for physics collisions
+        bool hasNonTriggerCollider = false;
+        foreach (Collider2D collider in allColliders)
+        {
+            if (!collider.isTrigger)
+            {
+                hasNonTriggerCollider = true;
+                Debug.Log($"BadFishAI: Found non-trigger collider {collider.GetType().Name} on {collider.gameObject.name} for physics collisions", this);
+            }
+            else
+            {
+                Debug.Log($"BadFishAI: Found trigger collider {collider.GetType().Name} on {collider.gameObject.name} (trigger colliders don't block movement)", this);
+            }
+        }
+        
+        if (!hasNonTriggerCollider)
+        {
+            Debug.LogError($"BadFishAI on {gameObject.name}: All colliders are TRIGGERS! Fish will pass through obstacles. Add at least one non-trigger collider.", this);
+        }
+        
+        // Check rigidbody settings
+        if (rb != null)
+        {
+            Debug.Log($"BadFishAI: Rigidbody2D settings - Type: {rb.bodyType}, CollisionDetection: {rb.collisionDetectionMode}, " +
+                      $"Interpolation: {rb.interpolation}, Gravity: {rb.gravityScale}", this);
+            
+            // Check if using 'Discrete' collision detection
+            if (rb.collisionDetectionMode == CollisionDetectionMode2D.Discrete)
+            {
+                Debug.LogWarning($"BadFishAI on {gameObject.name}: Using DISCRETE collision detection. Fast-moving fish may pass through thin colliders.", this);
+            }
+            
+            // Check if body type isn't Dynamic
+            if (rb.bodyType != RigidbodyType2D.Dynamic)
+            {
+                Debug.LogWarning($"BadFishAI on {gameObject.name}: Body type is {rb.bodyType} instead of Dynamic. Fish may not collide properly with static obstacles.", this);
+            }
+        }
+        
+        // Check layer collisions in Physics2D settings
+        int thisLayer = gameObject.layer;
+        string thisLayerName = LayerMask.LayerToName(thisLayer);
+        Debug.Log($"BadFishAI: This fish is on layer '{thisLayerName}' (#{thisLayer}).", this);
+        
+        // Check Physics2D layer collision matrix
+        Debug.Log("BadFishAI: Checking Physics2D layer collision matrix:", this);
+        
+        // Try to find floor/ground and fishblocker layers
+        for (int otherLayer = 0; otherLayer < 32; otherLayer++)
+        {
+            string otherLayerName = LayerMask.LayerToName(otherLayer);
+            if (string.IsNullOrEmpty(otherLayerName)) continue;
+            
+            // Check if this is a layer we care about
+            bool isFloorLayer = otherLayerName.ToLower().Contains("floor") || 
+                                otherLayerName.ToLower().Contains("ground");
+            bool isFishBlockerLayer = otherLayerName.ToLower().Contains("fishblocker") || 
+                                      (otherLayerName.ToLower().Contains("fish") && otherLayerName.ToLower().Contains("block"));
+            
+            if (isFloorLayer || isFishBlockerLayer)
+            {
+                bool canCollide = AreLayersColliding(thisLayer, otherLayer);
+                Debug.Log($"  - This layer ({thisLayerName}) {(canCollide ? "CAN" : "CANNOT")} collide with {otherLayerName}", this);
+                
+                if (!canCollide)
+                {
+                    Debug.LogError($"PHYSICS2D LAYER ISSUE: {thisLayerName} and {otherLayerName} are NOT set to collide in Physics2D settings!", this);
+                    Debug.LogError("Open Edit > Project Settings > Physics 2D and check the Layer Collision Matrix", this);
+                }
+            }
+        }
+        
+        // Check collisionLayers property for avoidance
+        if (collisionLayers.value == 0)
+        {
+            Debug.LogError($"BadFishAI on {gameObject.name}: collisionLayers is set to NOTHING (0). Fish won't detect obstacles to avoid!", this);
+        }
+        else
+        {
+            // Log which layers are included in collision avoidance
+            Debug.Log($"BadFishAI: Collision avoidance is set up for these layers:", this);
+            for (int i = 0; i < 32; i++)
+            {
+                if (((1 << i) & collisionLayers.value) != 0)
+                {
+                    string layerName = LayerMask.LayerToName(i);
+                    Debug.Log($"  - Layer {i}: {(string.IsNullOrEmpty(layerName) ? "Unnamed" : layerName)}", this);
+                }
+            }
+            
+            // Try to determine common layer names for floors and walls
+            bool containsFloor = false;
+            bool containsWall = false;
+            bool containsFishBlocker = false;
+            
+            for (int i = 0; i < 32; i++)
+            {
+                if (((1 << i) & collisionLayers.value) != 0)
+                {
+                    string layerName = LayerMask.LayerToName(i).ToLower();
+                    if (layerName.Contains("floor") || layerName.Contains("ground") || layerName.Contains("terrain"))
+                    {
+                        containsFloor = true;
+                    }
+                    if (layerName.Contains("wall") || layerName.Contains("obstacle") || layerName.Contains("block"))
+                    {
+                        containsWall = true;
+                    }
+                    if (layerName.Contains("fish") && (layerName.Contains("block") || layerName.Contains("barrier")))
+                    {
+                        containsFishBlocker = true;
+                    }
+                }
+            }
+            
+            if (!containsFloor)
+            {
+                Debug.LogWarning($"BadFishAI: No 'Floor' or 'Ground' layers detected in collisionLayers. Fish may not avoid floors!", this);
+            }
+            if (!containsWall)
+            {
+                Debug.LogWarning($"BadFishAI: No 'Wall' or 'Obstacle' layers detected in collisionLayers. Fish may not avoid walls!", this);
+            }
+            if (!containsFishBlocker)
+            {
+                Debug.LogWarning($"BadFishAI: No 'FishBlocker' layer detected in collisionLayers. Fish may not avoid fish blockers!", this);
+            }
+        }
+    }
+    
+    // Helper method to check if two layers are set to collide in Physics2D settings
+    private bool AreLayersColliding(int layer1, int layer2)
+    {
+        // Get the value directly from Physics2D
+        return Physics2D.GetIgnoreLayerCollision(layer1, layer2) == false;
+    }
+
+    void OnEnable()
+    {
+        // Check rigidbody state when fish is enabled/activated
+        if (rb != null)
+        {
+            // Log current state
+            Debug.Log($"BadFishAI OnEnable - Rigidbody2D state: Type={rb.bodyType}, GameObject={gameObject.name}", this);
+            
+            // Force to Dynamic if needed
+            if (rb.bodyType != RigidbodyType2D.Dynamic)
+            {
+                Debug.LogWarning($"BadFishAI OnEnable - Found Rigidbody2D as {rb.bodyType}, forcing to Dynamic", this);
+                rb.bodyType = RigidbodyType2D.Dynamic;
             }
         }
     }

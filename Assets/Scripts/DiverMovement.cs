@@ -23,6 +23,10 @@ public class DiverMovement : MonoBehaviour
     public float boostMultiplier = 2.0f; // How much faster the diver moves when boosting
     public KeyCode boostKey = KeyCode.Space; // Key to activate boost
     
+    [Header("Child Object References")]
+    [SerializeField] private Transform bloodSplatTransform; // Assign bloodSpatter_1 transform
+    [SerializeField] private float bloodSplatOffsetX = 0.5f; // Desired offset from player center
+    
     [Header("Bubble Effect Settings")]
     [SerializeField] private ParticleSystem boostBubbles; // Particle system for boost bubbles
     [SerializeField] private float bubbleEmissionRate = 20f; // Rate at which bubbles are emitted when boosting
@@ -389,25 +393,47 @@ public class DiverMovement : MonoBehaviour
     // Handle flipping the helmet bubble emitter based on movement direction
     private void UpdateHelmetBubbleEmitterFlip()
     {
+        bool isFlipped = false;
+        // First try to determine flip state from the sprite renderer
+        if (playerSprite != null)
+        {
+            isFlipped = playerSprite.flipX;
+        }
+        // Fallback to ArmAim script if sprite reference is missing or not working
+        else if (armAimScript != null)
+        {
+            isFlipped = !armAimScript.IsFacingRight;
+        }
+        
+        // Convert to facing direction (true = right, false = left)
+        bool isFacingRight = !isFlipped;
+
+        // --- Flip Blood Spatter Child Position AND Scale --- 
+        if (bloodSplatTransform != null)
+        {
+            Vector3 currentSplatPos = bloodSplatTransform.localPosition;
+            Vector3 currentSplatScale = bloodSplatTransform.localScale;
+
+            // Determine target position and scale based on facing direction
+            float targetPosX = isFacingRight ? bloodSplatOffsetX : -bloodSplatOffsetX;
+            float targetScaleX = isFacingRight ? Mathf.Abs(currentSplatScale.x) : -Mathf.Abs(currentSplatScale.x);
+
+            // Apply position if changed
+            if (Mathf.Abs(currentSplatPos.x - targetPosX) > 0.01f)
+            {
+                bloodSplatTransform.localPosition = new Vector3(targetPosX, currentSplatPos.y, currentSplatPos.z);
+            }
+            // Apply scale if changed
+            if (Mathf.Abs(currentSplatScale.x - targetScaleX) > 0.01f)
+            {
+                bloodSplatTransform.localScale = new Vector3(targetScaleX, currentSplatScale.y, currentSplatScale.z);
+            }
+        }
+        // --- End Flip Blood Spatter --- 
+
+        // Existing Helmet Bubble Emitter Logic
         if (helmetBubbleEmitterTransform != null)
         {
-            // Determine flip state using same method as other systems
-            bool isFlipped = false;
-            
-            // First try to determine flip state from the sprite renderer
-            if (playerSprite != null)
-            {
-                isFlipped = playerSprite.flipX;
-            }
-            // Fallback to ArmAim script if sprite reference is missing or not working
-            else if (armAimScript != null)
-            {
-                isFlipped = !armAimScript.IsFacingRight;
-            }
-            
-            // Convert to facing direction (true = right, false = left)
-            bool isFacingRight = !isFlipped;
-            
             // Get the HelmetBubbleEmitter component instead of changing the transform directly
             HelmetBubbleEmitter emitter = helmetBubbleEmitterTransform.GetComponent<HelmetBubbleEmitter>();
             if (emitter != null)

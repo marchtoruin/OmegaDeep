@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI; // Required for UI elements
+using FMODUnity;
 
 public class badFishHealth : MonoBehaviour
 {
@@ -31,6 +32,9 @@ public class badFishHealth : MonoBehaviour
     // Optional effect to play when damaged
     [SerializeField] private GameObject damageEffectPrefab;
     
+    // FMOD impact sound
+    public FMODPlayOnTrigger impactSound;
+    
     // Private variables
     private bool isHealthBarVisible = false;
     private float healthBarTimer = 0f;
@@ -41,6 +45,12 @@ public class badFishHealth : MonoBehaviour
     // Initialize health on startup
     void Start()
     {
+        // Find ImpactSoundTrigger child and get FMODPlayOnTrigger
+        Transform impactSoundChild = transform.Find("ImpactSoundTrigger");
+        if (impactSoundChild != null)
+        {
+            impactSound = impactSoundChild.GetComponent<FMODPlayOnTrigger>();
+        }
         // Store original max health
         originalMaxHealth = maxHealth;
         
@@ -134,6 +144,12 @@ public class badFishHealth : MonoBehaviour
     {
         // Validate damage amount
         if (amount <= 0) return;
+        
+        // Play impact sound if available
+        if (impactSound != null && impactSound.emitter != null)
+        {
+            impactSound.emitter.Play();
+        }
         
         // Debug - always log damage for bosses regardless of debug setting
         if (isBoss || showDebugMessages)

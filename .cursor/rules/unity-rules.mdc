@@ -19,7 +19,7 @@ alwaysApply: true
 - If a script depends on other scripts or managers, confirm with me whether those exist and what they're named.
 - Only implement what I specifically ask for. Do not add extra functionality unless I approve it first.
 - Try to be less verbose but effective in communication
-
+- be as concise as possible and less verbose
 
 - You can @ files here
 - You can use markdown but dont have to

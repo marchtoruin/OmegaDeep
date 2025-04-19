@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 2
   tags:
   - BadFish
+  - airBubble
   layers:
   - Default
   - TransparentFX
@@ -12,12 +13,12 @@ TagManager:
   - background
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Enemy
+  - Player
+  - Floor
+  - PlayerHurtCollider
+  - Airbubble
+  - FishBlocker
   - 
   - 
   - 
@@ -47,6 +48,12 @@ TagManager:
     locked: 0
   - name: Midground
     uniqueID: 2989910977
+    locked: 0
+  - name: Water
+    uniqueID: 2414596605
+    locked: 0
+  - name: Blood
+    uniqueID: 3564989683
     locked: 0
   - name: Player
     uniqueID: 1023559861

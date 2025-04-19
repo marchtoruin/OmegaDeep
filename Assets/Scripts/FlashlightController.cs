@@ -11,6 +11,14 @@ public class FlashlightController : MonoBehaviour
     public KeyCode toggleKey = KeyCode.F; // Key to toggle flashlight on/off
     public bool startOn = true; // Whether the flashlight starts on or off
     
+    [Header("Battery Settings")]
+    public float maxBattery = 100f;
+    public float drainRate = 5f; // Units per second when ON
+    public float rechargeRate = 2f; // Units per second when OFF
+    
+    // Public for UI or other scripts to read
+    [HideInInspector] public float currentBattery; 
+    
     [Header("Debug")]
     [SerializeField] private bool showDebugInfo = false; // Default to false to reduce console spam
     
@@ -37,8 +45,16 @@ public class FlashlightController : MonoBehaviour
             }
         }
         
+        // Initialize battery
+        currentBattery = maxBattery;
+        
         // Initialize light state
         isOn = startOn;
+        // If starting on but battery is somehow 0, start off
+        if (currentBattery <= 0) 
+        {
+            isOn = false;
+        }
         UpdateLightState();
         
         // Store the initial local position and rotation of the flashlight
@@ -104,10 +120,46 @@ public class FlashlightController : MonoBehaviour
 
     void Update()
     {
+        // --- Battery Drain/Recharge --- 
+        if (isOn)
+        {
+            if (currentBattery > 0)
+            {
+                currentBattery -= drainRate * Time.deltaTime;
+                currentBattery = Mathf.Max(currentBattery, 0f); // Clamp to 0
+            }
+            
+            // Auto-turn off if battery runs out
+            if (currentBattery <= 0)
+            {
+                if (showDebugInfo) Debug.Log("Battery depleted, turning flashlight off.");
+                isOn = false;
+                UpdateLightState();
+            }
+        }
+        else // Flashlight is OFF
+        {
+            if (currentBattery < maxBattery)
+            {
+                currentBattery += rechargeRate * Time.deltaTime;
+                currentBattery = Mathf.Min(currentBattery, maxBattery); // Clamp to max
+            }
+        }
+        // --- End Battery --- 
+
         // Check for flashlight toggle input
         if (Input.GetKeyDown(toggleKey))
         {
-            ToggleFlashlight();
+            // Only allow turning ON if there is battery
+            if (!isOn && currentBattery > 0)
+            {
+                ToggleFlashlight();
+            }
+            // Always allow turning OFF
+            else if (isOn)
+            {
+                ToggleFlashlight();
+            }
         }
     }
 
@@ -225,5 +277,18 @@ public class FlashlightController : MonoBehaviour
                 //}
             }
         }
+    }
+
+    // Method for pickups to fully recharge the battery
+    public void RechargeFully()
+    {
+        currentBattery = maxBattery;
+        if (showDebugInfo) Debug.Log("Battery fully recharged!");
+    }
+
+    // Method for UI to get the battery level (0.0 to 1.0)
+    public float GetBatteryNormalized()
+    {
+        return currentBattery / maxBattery;
     }
 }

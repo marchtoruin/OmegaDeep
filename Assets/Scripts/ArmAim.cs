@@ -20,6 +20,10 @@ public class ArmAim : MonoBehaviour
     
     [Tooltip("Local offset applied to ArmPivot when facing left")]
     public Vector2 leftOffset = Vector2.zero; // Now offsets the ArmPivot itself
+    
+    [Header("Flicker Prevention")]
+    [Tooltip("Buffer zone to prevent rapid switching when mouse is near the player")]
+    public float directionSwitchThreshold = 0.5f; // Adds a small buffer zone to prevent rapid switching
 
     private Camera mainCam;
     // Changed to public property to expose to other scripts
@@ -39,7 +43,38 @@ public class ArmAim : MonoBehaviour
         else originalPivotLocalPos = armPivot.localPosition; // Store original local position
 
         mainCam = Camera.main;
-         if (mainCam == null) Debug.LogError("Main Camera not found!");
+        if (mainCam == null) Debug.LogError("Main Camera not found!");
+        
+        // Ensure the arms have consistent Z-position and scale
+        SetupArmRenderSettings();
+    }
+    
+    private void SetupArmRenderSettings()
+    {
+        // Ensure the arms have consistent Z position
+        if (rightArm != null)
+        {
+            // Ensure consistent sorting settings
+            rightArm.sortingOrder = 10; // Adjust this value as needed
+            
+            // Ensure the Z scale is exactly 1
+            Transform rightArmTransform = rightArm.transform;
+            Vector3 rightScale = rightArmTransform.localScale;
+            rightScale.z = 1f;
+            rightArmTransform.localScale = rightScale;
+        }
+        
+        if (leftArm != null)
+        {
+            // Ensure consistent sorting settings
+            leftArm.sortingOrder = 10; // Same as right arm
+            
+            // Ensure the Z scale is exactly 1
+            Transform leftArmTransform = leftArm.transform;
+            Vector3 leftScale = leftArmTransform.localScale;
+            leftScale.z = 1f;
+            leftArmTransform.localScale = leftScale;
+        }
     }
 
     void Start()
@@ -60,7 +95,24 @@ public class ArmAim : MonoBehaviour
         Vector2 mousePos = mainCam.ScreenToWorldPoint(Input.mousePosition);
         Vector2 direction = mousePos - (Vector2)armPivot.position; // Aiming relative to current pivot position
         float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        calculatedShouldFaceLeft = mousePos.x < armPivot.position.x;
+        
+        // Add hysteresis to prevent flickering when mouse is near the player horizontally
+        float horizontalDistance = mousePos.x - armPivot.position.x;
+        
+        // Only change direction if the mouse moves beyond the threshold in the opposite direction
+        if (_isFacingRight && horizontalDistance < -directionSwitchThreshold)
+        {
+            calculatedShouldFaceLeft = true;
+        }
+        else if (!_isFacingRight && horizontalDistance > directionSwitchThreshold)
+        {
+            calculatedShouldFaceLeft = false;
+        }
+        else
+        {
+            // Keep current direction if within threshold
+            calculatedShouldFaceLeft = !_isFacingRight;
+        }
 
         if (calculatedShouldFaceLeft)
         {
@@ -96,8 +148,13 @@ public class ArmAim : MonoBehaviour
             armPivot.localPosition = targetPivotLocalPos;
         }
 
-        // 3. Apply the aiming rotation to ArmPivot (world rotation)
-        armPivot.rotation = Quaternion.Euler(0f, 0f, calculatedAngle);
+        // 3. Apply the aiming rotation to ArmPivot (strictly in 2D)
+        // FIXED: Use eulerAngles for 2D rotation instead of Quaternion to prevent Z drift
+        Vector3 eulerRotation = armPivot.eulerAngles;
+        eulerRotation.z = calculatedAngle;
+        eulerRotation.x = 0f;
+        eulerRotation.y = 0f;
+        armPivot.eulerAngles = eulerRotation;
 
         // --- Update Visual State ---
          if (calculatedShouldFaceLeft)
@@ -106,9 +163,11 @@ public class ArmAim : MonoBehaviour
             {
                 _isFacingRight = false;
                 if (playerSprite != null) playerSprite.flipX = true;
+                
+                // Switch arm visibility
+                if (rightArm != null) rightArm.gameObject.SetActive(false);
+                if (leftArm != null) leftArm.gameObject.SetActive(true);
             }
-            if (rightArm != null && rightArm.gameObject.activeSelf) rightArm.gameObject.SetActive(false);
-            if (leftArm != null && !leftArm.gameObject.activeSelf) leftArm.gameObject.SetActive(true);
          }
          else // Facing Right
          {
@@ -116,9 +175,11 @@ public class ArmAim : MonoBehaviour
             {
                 _isFacingRight = true;
                 if (playerSprite != null) playerSprite.flipX = false;
+                
+                // Switch arm visibility
+                if (rightArm != null) rightArm.gameObject.SetActive(true);
+                if (leftArm != null) leftArm.gameObject.SetActive(false);
             }
-            if (rightArm != null && !rightArm.gameObject.activeSelf) rightArm.gameObject.SetActive(true);
-            if (leftArm != null && leftArm.gameObject.activeSelf) leftArm.gameObject.SetActive(false);
          }
     }
 }

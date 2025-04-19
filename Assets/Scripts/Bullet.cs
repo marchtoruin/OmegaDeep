@@ -202,20 +202,28 @@ public class Bullet : MonoBehaviour
         Destroy(gameObject);
     }
     
-    // Apply damage to any target with a badFishHealth component
+    // Apply damage to any target with a health component
     private void ApplyDamage(GameObject target)
     {
-        // Check for badFishHealth component
+        bool hasTakenDamage = false;
+        // bad fish health
         badFishHealth fishHealth = target.GetComponent<badFishHealth>();
         if (fishHealth != null)
         {
-            // Apply damage to the fish
             fishHealth.TakeDamage(damageAmount);
-            
-            if (debugCollisions)
-            {
-                Debug.Log($"Bullet applied {damageAmount} damage to {target.name}", this);
-            }
+            hasTakenDamage = true;
+        }
+        // jelly fish health
+        JellyfishHealth jellyHealth = target.GetComponent<JellyfishHealth>();
+        if (jellyHealth != null)
+        {
+            jellyHealth.TakeDamage(damageAmount);
+            hasTakenDamage = true;
+        }
+        // TODO: add other enemy types here
+        if (hasTakenDamage && debugCollisions)
+        {
+            Debug.Log($"Bullet applied {damageAmount} damage to {target.name}", this);
         }
     }
     

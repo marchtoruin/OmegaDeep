@@ -107,6 +107,17 @@ public class EnemySpawner : MonoBehaviour
         // Spawn the enemy
         GameObject enemy = Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
         
+        // --- Fix orientation: ensure scale.x is positive and artworkFacesRight is true ---
+        Vector3 scale = enemy.transform.localScale;
+        scale.x = Mathf.Abs(scale.x); // Force positive X scale
+        enemy.transform.localScale = scale;
+        var ai = enemy.GetComponent<BadFishAI>();
+        if (ai != null)
+        {
+            ai.artworkFacesRight = true; // Ensure AI knows artwork faces right
+        }
+        // --- End fix ---
+        
         // Make it a child of this spawner for organization
         enemy.transform.parent = transform;
         
@@ -282,5 +293,21 @@ public class EnemySpawner : MonoBehaviour
                 Debug.Log($"Respawned enemy at position {respawnPos} after {delay} seconds");
             }
         }
+    }
+    
+    public void ResetSpawner()
+    {
+        // Destroy all currently spawned enemies
+        foreach (var enemy in new List<Transform>(spawnedEnemies))
+        {
+            if (enemy != null)
+                Destroy(enemy.gameObject);
+        }
+        spawnedEnemies.Clear();
+        activeEnemies.Clear();
+        enemyOriginalPositions.Clear();
+        pendingRespawnPositions.Clear();
+        // Respawn the full set of enemies
+        SpawnAllEnemies();
     }
 } 

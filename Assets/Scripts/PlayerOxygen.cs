@@ -61,9 +61,13 @@ public class PlayerOxygen : MonoBehaviour
             isDead = true;
             if (playerHealth != null)
             {
-                playerHealth.TakeDamage(9999); // Or call Die() directly if you prefer
+                Debug.Log("[Oxygen] Triggering player death due to oxygen depletion.");
+                playerHealth.ForceDie();
             }
-            if (showDebug) Debug.Log("[Oxygen] Player died due to oxygen depletion!");
+            else
+            {
+                Debug.LogError("[Oxygen] playerHealth is null! Cannot trigger death.");
+            }
         }
     }
 

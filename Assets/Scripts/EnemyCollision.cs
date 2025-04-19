@@ -5,9 +5,7 @@ using UnityEngine;
 public class EnemyCollision : MonoBehaviour
 {
     [SerializeField] private int damageAmount = 10;
-    [SerializeField] private float knockbackForce = 3f; // Adjusted from 8000f to 3f
     [SerializeField] private bool showDebugInfo = true;
-    [SerializeField] private float knockbackDuration = 0.5f; // Longer duration for knockback effect
     [SerializeField] private float repulsionCheckDistance = 1.5f; // Distance to check for overlapping player
     [SerializeField] private float repulsionForce = 5f; // Force to apply to push player away when overlapped
     [SerializeField] private LayerMask playerLayerMask; // Layer mask for the player
@@ -45,7 +43,7 @@ public class EnemyCollision : MonoBehaviour
             
             if (playerRb == null)
             {
-                Debug.LogError("Player found but has no Rigidbody2D! Knockback won't work.", this);
+                Debug.LogError("Player found but has no Rigidbody2D! Repulsion won't work.", this);
             }
             else if (playerRb.isKinematic)
             {
@@ -54,7 +52,7 @@ public class EnemyCollision : MonoBehaviour
             
             if (playerMovement == null)
             {
-                Debug.LogWarning("Player doesn't have DiverMovement script. This might affect knockback coordination.", this);
+                Debug.LogWarning("Player doesn't have DiverMovement script. This might affect repulsion coordination.", this);
             }
         }
         else
@@ -107,12 +105,12 @@ public class EnemyCollision : MonoBehaviour
             
             if (playerRb == null)
             {
-                Debug.LogError("Player has no Rigidbody2D component! Cannot apply knockback.", this);
+                Debug.LogError("Player has no Rigidbody2D component! Cannot apply repulsion.", this);
                 return;
             }
         }
         
-        // Check if we're already in a collision (to prevent multiple knockbacks)
+        // Check if we're already in a collision (to prevent multiple damages)
         if (isColliding)
         {
             Debug.Log("Already in collision - ignoring", this);
@@ -122,20 +120,20 @@ public class EnemyCollision : MonoBehaviour
         // Set collision flag to prevent multiple hits
         isColliding = true;
         
-        // Calculate direction from fish to player
+        // Calculate direction from fish to player (for PlayerHealth to use)
         Vector2 knockbackDirection = (other.transform.position - transform.position).normalized;
         
         // Make the Y component stronger to ensure upward movement
         knockbackDirection.y = Mathf.Abs(knockbackDirection.y) + 0.8f;
         knockbackDirection = knockbackDirection.normalized;
         
-        // Print very detailed debug info about rigidbody
-        Debug.Log($"Player RB properties - Mass: {playerRb.mass}, Drag: {playerRb.drag}, " +
-                  $"Constraints: {playerRb.constraints}, Gravity: {playerRb.gravityScale}, " +
-                  $"Is Kinematic: {playerRb.isKinematic}, Interpolation: {playerRb.interpolation}", this);
-        
-        // Apply knockback regardless of invulnerability state
-        StartCoroutine(ApplyKnockbackOverTime(playerRb, knockbackDirection));
+        // Print debug info about rigidbody
+        if (showDebugInfo)
+        {
+            Debug.Log($"Player RB properties - Mass: {playerRb.mass}, Drag: {playerRb.drag}, " +
+                    $"Constraints: {playerRb.constraints}, Gravity: {playerRb.gravityScale}, " +
+                    $"Is Kinematic: {playerRb.isKinematic}, Interpolation: {playerRb.interpolation}", this);
+        }
         
         // Start checking for overlap immediately
         if (!checkingRepulsion)
@@ -146,85 +144,25 @@ public class EnemyCollision : MonoBehaviour
         // Only damage if not invulnerable
         if (!playerHealth.IsInvulnerable())
         {
-            // Check if this is a boss fish and modify damage accordingly
-            int actualDamage = damageAmount;
-            badFishHealth fishHealth = GetComponent<badFishHealth>();
+            // Get damage from our GetDamageAmount method that accounts for boss status
+            int damage = GetDamageAmount();
             
-            if (fishHealth != null && fishHealth.IsBoss())
+            if (showDebugInfo && GetComponent<badFishHealth>() != null && GetComponent<badFishHealth>().IsBoss())
             {
-                // Apply boss damage multiplier
-                actualDamage *= fishHealth.GetBossDamageMultiplier();
-                Debug.Log($"Boss fish collision! Damage multiplied to {actualDamage}", this);
+                Debug.Log($"Boss fish collision! Damage multiplied to {damage}", this);
             }
             
             // Damage the player through their health component
-            playerHealth.TakeDamage(actualDamage);
+            // PlayerHealth will handle knockback internally
+            playerHealth.TakeDamage(damage);
         }
         else
         {
-            Debug.Log("Player is invulnerable - applying knockback but no damage", this);
+            Debug.Log("Player is invulnerable - ignoring damage", this);
         }
         
         // Reset collision flag after delay
-        Invoke("ResetCollision", knockbackDuration + 1.0f);
-    }
-    
-    private IEnumerator ApplyKnockbackOverTime(Rigidbody2D rb, Vector2 direction)
-    {
-        Vector3 initialPosition = rb.transform.position;
-        Debug.Log($"Start knockback from position {initialPosition}", this);
-        
-        // Save original gravity scale to restore later
-        float originalGravityScale = rb.gravityScale;
-        
-        // Temporarily reduce gravity during knockback to get more distance
-        rb.gravityScale = 0.05f;
-        
-        // Disable player movement by setting knockback state
-        if (playerMovement != null)
-        {
-            playerMovement.SetKnockbackState(true, knockbackDuration + 0.2f);
-            Debug.Log("Disabled player movement control during knockback", this);
-        }
-        else
-        {
-            Debug.LogWarning("Could not find DiverMovement component to disable movement during knockback", this);
-        }
-        
-        // Apply a stronger initial impulse to get the player moving
-        rb.velocity = Vector2.zero; // Reset velocity completely
-        rb.AddForce(direction * knockbackForce * 1.5f, ForceMode2D.Impulse);
-        Debug.Log($"Initial impulse: {direction * knockbackForce * 1.5f}", this);
-        
-        yield return new WaitForFixedUpdate();
-        
-        // Apply force multiple times to ensure it works
-        for (int i = 0; i < 5; i++) // Reduced iterations since force is now appropriate
-        {
-            // Apply impulse force if velocity drops too low
-            if (rb.velocity.magnitude < 5f) // Reduced threshold to match new force scale
-            {
-                rb.AddForce(direction * knockbackForce * 0.75f, ForceMode2D.Impulse);
-                
-                Debug.Log($"Applied force: {direction * knockbackForce * 0.75f}, Frame: {i}, " +
-                         $"Player position: {rb.transform.position}, " +
-                         $"Player velocity: {rb.velocity}", this);
-            }
-            
-            // Wait for physics update
-            yield return new WaitForFixedUpdate();
-        }
-        
-        // Wait for a brief period to let physics work
-        yield return new WaitForSeconds(knockbackDuration);
-        
-        // Restore original gravity
-        rb.gravityScale = originalGravityScale;
-        
-        // Log movement stats
-        Debug.Log($"Knockback complete. Initial position: {initialPosition}, " +
-                 $"Final position: {rb.transform.position}, " +
-                 $"Total movement: {Vector3.Distance(initialPosition, rb.transform.position)}", this);
+        Invoke("ResetCollision", 1.0f);
     }
     
     private void ResetCollision()
@@ -243,12 +181,12 @@ public class EnemyCollision : MonoBehaviour
     {
         checkingRepulsion = true;
         
-        // Reduced check duration for more frequent repulsion
-        float checkDuration = knockbackDuration + 0.5f; // Reduced from 1.0f to 0.5f
+        // Check for a short duration
+        float checkDuration = 0.5f;
         float elapsedTime = 0f;
         
-        // Check more frequently with shorter intervals
-        float checkInterval = 0.05f; // Check every 0.05 seconds instead of every frame
+        // Check frequently with short intervals
+        float checkInterval = 0.05f; // Check every 0.05 seconds
         
         while (elapsedTime < checkDuration)
         {
@@ -278,19 +216,19 @@ public class EnemyCollision : MonoBehaviour
                         Debug.Log($"Applied repulsion force: {pushDirection * repulsionForce * forceFactor} to prevent sticking", this);
                     }
                     
-                    // If the player movement component exists, make sure it knows we're pushing the player
+                    // Inform player movement of this brief repulsion
                     if (playerMovement != null)
                     {
-                        playerMovement.SetKnockbackState(true, 0.1f); // Reduced from 0.2f to 0.1f
+                        playerMovement.SetKnockbackState(true, 0.1f);
                     }
                 }
             }
             
             elapsedTime += checkInterval;
-            yield return new WaitForSeconds(checkInterval); // Use fixed interval instead of physics update
+            yield return new WaitForSeconds(checkInterval);
         }
         
-        // Allow a new repulsion check sooner
+        // Allow a new repulsion check
         checkingRepulsion = false;
     }
     
@@ -302,5 +240,23 @@ public class EnemyCollision : MonoBehaviour
             Gizmos.color = Color.red;
             Gizmos.DrawLine(transform.position, playerTransform.position);
         }
+    }
+    
+    /// <summary>
+    /// Returns the damage amount this enemy deals
+    /// </summary>
+    public int GetDamageAmount()
+    {
+        // Check if this is a boss fish and modify damage accordingly
+        int actualDamage = damageAmount;
+        badFishHealth fishHealth = GetComponent<badFishHealth>();
+        
+        if (fishHealth != null && fishHealth.IsBoss())
+        {
+            // Apply boss damage multiplier
+            actualDamage *= fishHealth.GetBossDamageMultiplier();
+        }
+        
+        return actualDamage;
     }
 } 
