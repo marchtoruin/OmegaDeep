@@ -143,7 +143,12 @@ public class PlayerHealth : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D collider)
     {
-        HandleEnemyHit(collider.gameObject);
+        // Only handle enemy fish or jellyfish collisions
+        if (collider.CompareTag("BadFish") || collider.GetComponent<EnemyCollision>() != null || collider.GetComponent<JellyfishHealth>() != null)
+        {
+            HandleEnemyHit(collider.gameObject);
+        }
+        // Otherwise, ignore (do not trigger hurt logic for WorldBounds or other triggers)
     }
 
     // Centralized enemy hit logic with optional damage parameter

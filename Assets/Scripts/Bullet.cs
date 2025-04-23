@@ -66,6 +66,12 @@ public class Bullet : MonoBehaviour
         {
             SetShooter(player);
         }
+        // Exclude WorldBounds layer from collisionLayers
+        int worldBoundsLayer = LayerMask.NameToLayer("WorldBounds");
+        if (worldBoundsLayer >= 0)
+        {
+            collisionLayers &= ~(1 << worldBoundsLayer);
+        }
     }
     
     // Call this from DiverShooter when instantiating the bullet
@@ -170,6 +176,10 @@ public class Bullet : MonoBehaviour
     // Add trigger handling as a fallback
     private void OnTriggerEnter2D(Collider2D other)
     {
+        // Ignore WorldBounds layer
+        if (other.gameObject.layer == LayerMask.NameToLayer("WorldBounds"))
+            return;
+
         // Check if we're hitting the shooter within the ignore time
         if (ShouldIgnoreCollision(other.gameObject))
         {

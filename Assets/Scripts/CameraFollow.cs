@@ -11,11 +11,16 @@ public class CameraFollow : MonoBehaviour
     public bool clampToBackground = true; // Toggle clamping to background
     public float backgroundBuffer = 0f; // Optional buffer around background edges (can be negative)
     
+    [Header("World Bounds (Chunked World Support)")]
+    public BoxCollider2D worldBoundsCollider; // Reference to the world bounds collider
+    
     private Camera cam;
     private float camHalfHeight;
     private float camHalfWidth;
     private bool hasBounds;
     private Bounds backgroundBounds;
+    private bool hasWorldBounds = false;
+    private Bounds worldBounds;
     
     void Start()
     {
@@ -27,7 +32,21 @@ public class CameraFollow : MonoBehaviour
             return;
         }
         
-        // Auto-find background if not set
+        // Try to find WorldBounds collider if not set
+        if (worldBoundsCollider == null)
+        {
+            GameObject wbObj = GameObject.Find("WorldBounds");
+            if (wbObj != null)
+            {
+                worldBoundsCollider = wbObj.GetComponent<BoxCollider2D>();
+                if (worldBoundsCollider != null)
+                {
+                    Debug.Log("Auto-found WorldBounds BoxCollider2D.");
+                }
+            }
+        }
+        
+        // Auto-find background if not set (fallback)
         if (backgroundSprite == null)
         {
             GameObject bgObject = GameObject.Find("background");
@@ -53,12 +72,21 @@ public class CameraFollow : MonoBehaviour
             camHalfWidth = camHalfHeight * cam.aspect;
         }
         
-        // Update background bounds information
-        hasBounds = false;
-        if (backgroundSprite != null)
+        // Update world bounds if collider exists
+        hasWorldBounds = false;
+        if (worldBoundsCollider != null)
+        {
+            worldBounds = worldBoundsCollider.bounds;
+            hasWorldBounds = true;
+        }
+        else if (backgroundSprite != null)
         {
             backgroundBounds = backgroundSprite.bounds;
             hasBounds = true;
+        }
+        else
+        {
+            hasBounds = false;
         }
     }
 
@@ -79,31 +107,49 @@ public class CameraFollow : MonoBehaviour
         // Apply smooth follow
         Vector3 smoothedPosition = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed);
         
-        // Apply bounds clamping if enabled and we have valid bounds
-        if (clampToBackground && hasBounds)
+        // Apply world bounds clamping if enabled and we have valid bounds
+        if (clampToBackground && hasWorldBounds)
         {
-            // Calculate the clamping bounds (background bounds adjusted by camera size)
-            float minX = backgroundBounds.min.x + camHalfWidth - backgroundBuffer;
-            float maxX = backgroundBounds.max.x - camHalfWidth + backgroundBuffer;
-            float minY = backgroundBounds.min.y + camHalfHeight - backgroundBuffer;
-            float maxY = backgroundBounds.max.y - camHalfHeight + backgroundBuffer;
+            float minX = worldBounds.min.x + camHalfWidth - backgroundBuffer;
+            float maxX = worldBounds.max.x - camHalfWidth + backgroundBuffer;
+            float minY = worldBounds.min.y + camHalfHeight - backgroundBuffer;
+            float maxY = worldBounds.max.y - camHalfHeight + backgroundBuffer;
             
-            // Handle case where the camera's view is larger than the background
+            // Handle case where the camera's view is larger than the world bounds
             if (minX > maxX) 
             {
-                // Center camera horizontally on background
-                float centerX = backgroundBounds.center.x;
+                float centerX = worldBounds.center.x;
                 minX = maxX = centerX;
             }
             
             if (minY > maxY)
             {
-                // Center camera vertically on background
+                float centerY = worldBounds.center.y;
+                minY = maxY = centerY;
+            }
+            
+            smoothedPosition.x = Mathf.Clamp(smoothedPosition.x, minX, maxX);
+            smoothedPosition.y = Mathf.Clamp(smoothedPosition.y, minY, maxY);
+        }
+        // Fallback to background sprite bounds if no world bounds
+        else if (clampToBackground && hasBounds)
+        {
+            float minX = backgroundBounds.min.x + camHalfWidth - backgroundBuffer;
+            float maxX = backgroundBounds.max.x - camHalfWidth + backgroundBuffer;
+            float minY = backgroundBounds.min.y + camHalfHeight - backgroundBuffer;
+            float maxY = backgroundBounds.max.y - camHalfHeight + backgroundBuffer;
+            
+            if (minX > maxX)
+            {
+                float centerX = backgroundBounds.center.x;
+                minX = maxX = centerX;
+            }
+            if (minY > maxY)
+            {
                 float centerY = backgroundBounds.center.y;
                 minY = maxY = centerY;
             }
             
-            // Apply the clamping
             smoothedPosition.x = Mathf.Clamp(smoothedPosition.x, minX, maxX);
             smoothedPosition.y = Mathf.Clamp(smoothedPosition.y, minY, maxY);
         }
@@ -116,7 +162,7 @@ public class CameraFollow : MonoBehaviour
         );
     }
     
-    // This can be called when background changes or is resized
+    // This can be called when background or world bounds changes or is resized
     public void RefreshBounds()
     {
         UpdateCameraMetrics();
