@@ -501,7 +501,7 @@ MonoBehaviour:
   repulsionForce: 5
   playerLayerMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 128
 --- !u!114 &5717446968364870352
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -518,7 +518,7 @@ MonoBehaviour:
   aggroRange: 8
   obstacleLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 2304
   showDebugGizmos: 1
   patrolSpeed: 3
   chaseSpeed: 7
@@ -528,7 +528,7 @@ MonoBehaviour:
   bodyType: 0
   collisionDetectionMode: 1
   patrolPoints: []
-  patrolRadius: 7
+  patrolRadius: 8.46
   patrolPointWaitTime: 1.5
   useRandomPatrolPoints: 1
   maxRandomPatrolPoints: 4
@@ -544,7 +544,7 @@ MonoBehaviour:
   collisionAvoidanceForce: 5
   collisionLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 2304
   raycastSpacing: 0.5
 --- !u!1 &5963504577378188210
 GameObject:

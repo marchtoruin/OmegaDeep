@@ -6,6 +6,7 @@ TagManager:
   tags:
   - BadFish
   - airBubble
+  - PlayerProjectile
   layers:
   - Default
   - TransparentFX

@@ -158,6 +158,7 @@ public class BadFishAI : MonoBehaviour
         
         // Store starting position
         startPosition = transform.position;
+        Debug.Log($"[BadFishAI] {gameObject.name} Start() - startPosition: {startPosition}", this);
         
         // Validate colliders for physics collisions
         ValidateColliders();
@@ -184,10 +185,16 @@ public class BadFishAI : MonoBehaviour
         if (useRandomPatrolPoints)
         {
             GenerateRandomPatrolPoints();
+            // Log patrol points
+            string patrolPointsLog = "";
+            foreach (Vector2 pt in randomPatrolPoints)
+                patrolPointsLog += pt + ", ";
+            Debug.Log($"[BadFishAI] {gameObject.name} patrol points: {patrolPointsLog}", this);
         }
         
         // Set initial state
         currentState = FishState.Patrol;
+        Debug.Log($"[BadFishAI] {gameObject.name} entering Patrol state.", this);
         SetNextPatrolTarget();
         
         // Run an initial orientation check
@@ -230,6 +237,7 @@ public class BadFishAI : MonoBehaviour
     
     void Update()
     {
+        Debug.Log($"[BadFishAI] {gameObject.name} Update() running. State: {currentState}", this);
         // Check and fix orientation issues
         CheckAndFixOrientation();
         
@@ -306,6 +314,7 @@ public class BadFishAI : MonoBehaviour
         }
         
         // Move towards current patrol point
+        Debug.Log($"[BadFishAI] {gameObject.name} UpdatePatrolState - Moving towards {currentTarget}", this);
         MoveTowards(currentTarget, patrolSpeed);
         
         // Check if we reached the patrol point
@@ -393,6 +402,7 @@ public class BadFishAI : MonoBehaviour
         
         // Set velocity
         rb.velocity = direction * speed;
+        Debug.Log($"[BadFishAI] {gameObject.name} MoveTowards called. Target: {target}, Speed: {speed}, Direction: {direction}, Velocity: {rb.velocity}", this);
     }
     
     private void UpdateFacingDirection(float xDirection)
@@ -462,17 +472,19 @@ public class BadFishAI : MonoBehaviour
     private void GenerateRandomPatrolPoints()
     {
         randomPatrolPoints.Clear();
-        
+
         // Always include the start position
         randomPatrolPoints.Add(startPosition);
-        
-        // Generate additional random points
+
         for (int i = 0; i < maxRandomPatrolPoints - 1; i++)
         {
-            Vector2 randomOffset = Random.insideUnitCircle * patrolRadius;
-            randomPatrolPoints.Add(startPosition + randomOffset);
+            // Generate a random direction and distance within the patrol radius
+            float angle = Random.Range(0f, Mathf.PI * 2f);
+            float distance = Random.Range(patrolRadius * 0.5f, patrolRadius); // Avoid points too close to center
+            Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+            randomPatrolPoints.Add(startPosition + offset);
         }
-        
+
         // Log the patrol points for debugging
         if (showDebugGizmos)
         {

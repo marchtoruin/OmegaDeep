@@ -41,6 +41,9 @@ public class badFishHealth : MonoBehaviour
     private RectTransform healthBarRectTransform;
     private Vector2 originalSizeDelta; // Store original size
     private BadFishAI aiComponent; // Reference to AI component
+    private SpriteRenderer spriteRenderer; // Cache for blinking and flipping
+    private Rigidbody2D rb; // Cache for sinking
+    private bool isDying = false; // Prevent multiple death sequences
     
     // Initialize health on startup
     void Start()
@@ -65,6 +68,8 @@ public class badFishHealth : MonoBehaviour
         
         // Get AI component if available
         aiComponent = GetComponent<BadFishAI>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        rb = GetComponent<Rigidbody2D>();
         
         // Ensure fish has the proper tag for player collision detection
         if (gameObject.tag != "BadFish")
@@ -87,12 +92,12 @@ public class badFishHealth : MonoBehaviour
                 originalSizeDelta = healthBarRectTransform.sizeDelta;
                 
                 // Configure for right-to-left depletion (damage comes from right side)
-                // Using left-side pivot and anchors
-                healthBarRectTransform.pivot = new Vector2(0, 0.5f);
-                healthBarRectTransform.anchorMin = new Vector2(0, 0.5f);
-                healthBarRectTransform.anchorMax = new Vector2(0, 0.5f);
+                // Using right-side pivot and anchors
+                healthBarRectTransform.pivot = new Vector2(1, 0.5f);
+                healthBarRectTransform.anchorMin = new Vector2(1, 0.5f);
+                healthBarRectTransform.anchorMax = new Vector2(1, 0.5f);
                 
-                // Reset position to align with the left side of background
+                // Reset position to align with the right side of background
                 healthBarRectTransform.anchoredPosition = Vector2.zero;
             }
         }
@@ -210,7 +215,7 @@ public class badFishHealth : MonoBehaviour
             fillAmount = Mathf.Clamp01(fillAmount); // Ensure value is between 0-1
             
             // Adjust width through sizeDelta (width setting) 
-            // Since we're using left pivot/anchor, this gives right-to-left depletion
+            // Since we're using right pivot/anchor, this gives right-to-left depletion
             healthBarRectTransform.sizeDelta = new Vector2(originalSizeDelta.x * fillAmount, originalSizeDelta.y);
             
             if (showDebugMessages)
@@ -242,8 +247,78 @@ public class badFishHealth : MonoBehaviour
         {
             Debug.Log($"{gameObject.name}: Died", this);
         }
-        
-        // All fish can be killed, including bosses
+        if (!isDying) // Prevent multiple triggers
+        {
+            isDying = true;
+            StartCoroutine(DeathSequence());
+        }
+    }
+    
+    private IEnumerator DeathSequence()
+    {
+        // Disable AI and movement
+        if (aiComponent != null) aiComponent.enabled = false;
+        var enemyMove = GetComponent<EnemyMovement>();
+        if (enemyMove != null) enemyMove.enabled = false;
+        // Stop all movement and physics
+        if (rb != null)
+        {
+            rb.velocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+            rb.isKinematic = true;
+        }
+        // Disable all colliders (including children)
+        foreach (var col in GetComponentsInChildren<Collider2D>()) col.enabled = false;
+        // Flip upside down (rotate 180° Z)
+        transform.rotation = Quaternion.Euler(0, 0, 180);
+        // Blink red
+        if (spriteRenderer != null)
+        {
+            Color origColor = spriteRenderer.color;
+            for (int i = 0; i < 6; i++)
+            {
+                spriteRenderer.color = Color.red;
+                yield return new WaitForSeconds(0.1f);
+                spriteRenderer.color = origColor;
+                yield return new WaitForSeconds(0.1f);
+            }
+        }
+        // Sink straight down and fade out
+        float timer = 0f;
+        float duration = 2f;
+        Vector3 startPos = transform.position;
+        Vector3 endPos = startPos + new Vector3(0, -2f, 0); // Sink 2 units straight down
+        float startAlpha = 1f;
+        float endAlpha = 0f;
+        if (spriteRenderer != null)
+        {
+            Color c = spriteRenderer.color;
+            while (timer < duration)
+            {
+                float t = timer / duration;
+                transform.position = Vector3.Lerp(startPos, endPos, t);
+                c.a = Mathf.Lerp(startAlpha, endAlpha, t);
+                spriteRenderer.color = c;
+                timer += Time.deltaTime;
+                yield return null;
+            }
+            // Ensure final state
+            transform.position = endPos;
+            c.a = endAlpha;
+            spriteRenderer.color = c;
+        }
+        else
+        {
+            // No sprite renderer, just move
+            while (timer < duration)
+            {
+                float t = timer / duration;
+                transform.position = Vector3.Lerp(startPos, endPos, t);
+                timer += Time.deltaTime;
+                yield return null;
+            }
+            transform.position = endPos;
+        }
         Destroy(gameObject);
     }
     

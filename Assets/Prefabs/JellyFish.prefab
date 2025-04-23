@@ -388,9 +388,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 0.5
-  wanderRadius: 3
+  wanderRadius: 8.23
   directionChangeInterval: 2
-  bobAmplitude: 0.1
+  bobAmplitude: 0.24
   bobSpeed: 1
 --- !u!114 &5652761354819316874
 MonoBehaviour:

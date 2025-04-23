@@ -5,6 +5,9 @@
 [Bb]uild/
 [Bb]uilds/
 [Ll]ogs/
+# stop ignoring our art-specific Logs folder
+!Assets/Art/Logs/
+!Assets/Art/Logs/**
 [Uu]ser[Ss]ettings/
 
 # VS/Rider/MD/Consulo generated
