@@ -36,19 +36,18 @@ public class LayerChunkLoader : MonoBehaviour
     Dictionary<Vector2Int, GameObject> active       = new();
     Vector3                            originOffset;
 
+    // Add a flag to defer refresh in edit mode
+    private bool needsRefresh = false;
+
     void Awake()
     {
         // Clean up any existing children (chunks) to avoid leftovers
         foreach (Transform child in transform)
         {
-        #if UNITY_EDITOR
-            if (!Application.isPlaying)
-                DestroyImmediate(child.gameObject);
-            else
+            if (Application.isPlaying)
                 Destroy(child.gameObject);
-        #else
-            Destroy(child.gameObject);
-        #endif
+            else
+                DestroyImmediate(child.gameObject);
         }
         active.Clear();
         LoadSpritesAndComputeOrigin();
@@ -61,14 +60,23 @@ public class LayerChunkLoader : MonoBehaviour
     void OnValidate()
     {
         LoadSpritesAndComputeOrigin();
-        RefreshChunks();
+        // Instead of calling RefreshChunks() directly, set a flag
+        if (!Application.isPlaying)
+            needsRefresh = true;
     }
 
     // In Play mode, keep chunks around the camera streaming
     void Update()
     {
         if (Application.isPlaying)
+        {
             RefreshChunks();
+        }
+        else if (needsRefresh)
+        {
+            RefreshChunks();
+            needsRefresh = false;
+        }
     }
 
     // Load & sort your slice sprites, compute centering offset
@@ -97,28 +105,20 @@ public class LayerChunkLoader : MonoBehaviour
         // 1) Clear existing
         foreach (var kv in active)
             if (kv.Value) {
-        #if UNITY_EDITOR
-                if (!Application.isPlaying)
-                    DestroyImmediate(kv.Value);
-                else
+                if (Application.isPlaying)
                     Destroy(kv.Value);
-        #else
-                Destroy(kv.Value);
-        #endif
+                else
+                    DestroyImmediate(kv.Value);
             }
         active.Clear();
 
         // Also destroy any leftover children
         foreach (Transform child in transform)
         {
-        #if UNITY_EDITOR
-            if (!Application.isPlaying)
-                DestroyImmediate(child.gameObject);
-            else
+            if (Application.isPlaying)
                 Destroy(child.gameObject);
-        #else
-            Destroy(child.gameObject);
-        #endif
+            else
+                DestroyImmediate(child.gameObject);
         }
 
         // 2) Decide which coords to load

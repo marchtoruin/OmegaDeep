@@ -14,6 +14,12 @@ public class CameraFollow : MonoBehaviour
     [Header("World Bounds (Chunked World Support)")]
     public BoxCollider2D worldBoundsCollider; // Reference to the world bounds collider
     
+    [Header("Dynamic Offset Settings")]
+    [SerializeField] private float aheadOffset = 6f; // How far ahead to look in the facing direction
+    [SerializeField] private float offsetLerpSpeed = 6f; // How quickly the offset transitions
+    [SerializeField] private SpriteRenderer playerSprite; // Reference to the player's SpriteRenderer
+    private float currentDynamicOffsetX = 0f; // Smoothed offset value
+    
     private Camera cam;
     private float camHalfHeight;
     private float camHalfWidth;
@@ -101,8 +107,21 @@ public class CameraFollow : MonoBehaviour
             UpdateCameraMetrics();
         }
         
-        // Calculate desired position (target + offset)
-        Vector3 desiredPosition = target.position + offset;
+        // --- Dynamic Offset Logic ---
+        float targetOffsetX = offset.x;
+        if (playerSprite != null)
+        {
+            float direction = playerSprite.flipX ? -1f : 1f;
+            targetOffsetX = aheadOffset * direction;
+        }
+        // Smoothly interpolate the offset X value
+        currentDynamicOffsetX = Mathf.Lerp(currentDynamicOffsetX, targetOffsetX, offsetLerpSpeed * Time.deltaTime);
+        Vector3 dynamicOffset = offset;
+        dynamicOffset.x = currentDynamicOffsetX;
+        // --- End Dynamic Offset Logic ---
+        
+        // Calculate desired position (target + dynamic offset)
+        Vector3 desiredPosition = target.position + dynamicOffset;
         
         // Apply smooth follow
         Vector3 smoothedPosition = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed);

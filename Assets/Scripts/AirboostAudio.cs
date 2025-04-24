@@ -67,7 +67,7 @@ public class AirboostAudio : MonoBehaviour
         if (!boostStartEvent.IsNull)
         {
             // Get the event description and preload its sample data
-            RuntimeManager.StudioSystem.getEvent(boostStartEvent.Path, out boostStartEventDesc);
+            RuntimeManager.StudioSystem.getEvent(boostStartEvent.ToString(), out boostStartEventDesc);
             if (boostStartEventDesc.isValid())
             {
                 boostStartEventDesc.loadSampleData();
@@ -78,7 +78,7 @@ public class AirboostAudio : MonoBehaviour
         if (!boostStopEvent.IsNull)
         {
             // Get the event description and preload its sample data
-            RuntimeManager.StudioSystem.getEvent(boostStopEvent.Path, out boostStopEventDesc);
+            RuntimeManager.StudioSystem.getEvent(boostStopEvent.ToString(), out boostStopEventDesc);
             if (boostStopEventDesc.isValid())
             {
                 boostStopEventDesc.loadSampleData();
