@@ -2,7 +2,7 @@
 <objects serializationModel="Studio.02.02.00">
 	<object class="AudioFile" id="{b8ce4f1a-89a4-44b3-9b0c-2acf50f6e69a}">
 		<property name="assetPath">
-			<value>GetAwayFromMe.wav</value>
+			<value>Player/GetAwayFromMe.wav</value>
 		</property>
 		<property name="frequencyInKHz">
 			<value>44.0999985</value>

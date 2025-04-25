@@ -2,7 +2,7 @@
 <objects serializationModel="Studio.02.02.00">
 	<object class="AudioFile" id="{6a238f9c-01e6-4775-97d3-8681e788bcf5}">
 		<property name="assetPath">
-			<value>Airboost_Start.mp3</value>
+			<value>Airboost/Airboost_Start.mp3</value>
 		</property>
 		<property name="frequencyInKHz">
 			<value>44.0999985</value>

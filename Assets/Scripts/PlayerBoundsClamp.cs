@@ -17,7 +17,8 @@ public class PlayerBoundsClamp : MonoBehaviour
 
     void LateUpdate()
     {
-        if (worldBoundsCollider == null) return;
+        if (worldBoundsCollider == null || !worldBoundsCollider.enabled || !worldBoundsCollider.gameObject.activeInHierarchy)
+            return;
 
         Bounds bounds = worldBoundsCollider.bounds;
         Vector3 pos = transform.position;

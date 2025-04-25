@@ -230,6 +230,13 @@ public class Bullet : MonoBehaviour
             jellyHealth.TakeDamage(damageAmount);
             hasTakenDamage = true;
         }
+        // cone snail health
+        ConeSnailHealth coneSnailHealth = target.GetComponent<ConeSnailHealth>();
+        if (coneSnailHealth != null)
+        {
+            coneSnailHealth.TakeDamage(damageAmount);
+            hasTakenDamage = true;
+        }
         // TODO: add other enemy types here
         if (hasTakenDamage && debugCollisions)
         {

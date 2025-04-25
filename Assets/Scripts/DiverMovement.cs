@@ -156,13 +156,30 @@ public class DiverMovement : MonoBehaviour
             yield return null;
         }
         
+        // Check for teleport override
+        string effectiveSpawnPointName = spawnPointName;
+        if (!string.IsNullOrEmpty(SceneTransitionData.nextSpawnPointName))
+        {
+            var overrideSpawn = GameObject.Find(SceneTransitionData.nextSpawnPointName);
+            if (overrideSpawn != null)
+            {
+                Debug.Log($"[DiverMovement] Using teleport override spawn point: {SceneTransitionData.nextSpawnPointName}", this);
+                effectiveSpawnPointName = SceneTransitionData.nextSpawnPointName;
+            }
+            else
+            {
+                Debug.LogWarning($"[DiverMovement] Teleport override spawn point '{SceneTransitionData.nextSpawnPointName}' not found, falling back to default.", this);
+            }
+            SceneTransitionData.nextSpawnPointName = null;
+        }
+        
         // Find the spawn point
-        GameObject spawnPoint = GameObject.Find(spawnPointName);
+        GameObject spawnPoint = GameObject.Find(effectiveSpawnPointName);
         
         // Log detailed information about spawn point
         if (spawnPoint != null)
         {
-            Debug.Log($"[DiverMovement] Found spawn point '{spawnPointName}' at position: {spawnPoint.transform.position}", this);
+            Debug.Log($"[DiverMovement] Found spawn point '{effectiveSpawnPointName}' at position: {spawnPoint.transform.position}", this);
             
             // Store original position for comparison
             Vector3 originalPosition = transform.position;
@@ -231,7 +248,7 @@ public class DiverMovement : MonoBehaviour
         }
         else
         {
-            Debug.LogError($"[DiverMovement] Spawn point '{spawnPointName}' NOT FOUND in scene! Player will stay at current position: {transform.position}", this);
+            Debug.LogError($"[DiverMovement] Spawn point '{effectiveSpawnPointName}' NOT FOUND in scene! Player will stay at current position: {transform.position}", this);
             
             // Check scene for objects to help debugging
             GameObject[] allObjects = GameObject.FindObjectsOfType<GameObject>();

@@ -11,7 +11,7 @@ alwaysApply: true
     - The exact name of the GameObject the script will be attached to.
     - Which components already exist on that GameObject.
     - Whether the script needs to interact with existing systems (e.g., UI, FMOD, input, player, manager scripts).
-- Do not include logic that creates or modifies GameObjects or components in the scene — I will handle all object creation and setup myself.
+- Do not include logic that creates or modifies GameObjects or components in the scene unless i tell you to directly.
 - Only write scripts that I can manually attach to existing GameObjects.
 - Never include placeholder logic, animations, or audio unless I specifically ask for it.
 - If a script references an asset (e.g., sprite, FMOD event, UI element), ask me for the correct name or path before referencing it in code.

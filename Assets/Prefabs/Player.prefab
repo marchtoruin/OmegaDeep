@@ -26,13 +26,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1220672893603375073}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0.708166, w: 0.706046}
-  m_LocalPosition: {x: 1.6, y: -0.16, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: -0.7071068, w: 0.7071068}
+  m_LocalPosition: {x: 1.07, y: -0.02, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 2317616602117603697}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 87.75}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -90}
 --- !u!114 &5770449783335396877
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -100,7 +100,7 @@ MonoBehaviour:
   toggleKey: 102
   startOn: 1
   maxBattery: 100
-  drainRate: 5
+  drainRate: 2
   rechargeRate: 2
   currentBattery: 0
   showDebugInfo: 1
@@ -240,8 +240,8 @@ Transform:
   m_GameObject: {fileID: 2581120426268345685}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.14, y: 1.43, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.14, y: 1.4, z: 0}
+  m_LocalScale: {x: 2, y: 2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 430037808597253664}
@@ -270,6 +270,7 @@ MonoBehaviour:
   leftArmRotationOffset: 180
   rightOffset: {x: 0, y: 0}
   leftOffset: {x: 0.25, y: 0}
+  directionSwitchThreshold: 0.5
 --- !u!114 &2084946424059006609
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10108,7 +10109,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.8852388, y: 1.8852388, z: 1.8852388}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 2317616602117603697}
@@ -10182,6 +10183,7 @@ GameObject:
   - component: {fileID: 5866237218946625410}
   - component: {fileID: 2669173974311113551}
   - component: {fileID: 6455166839951580041}
+  - component: {fileID: 1268855938238338522}
   m_Layer: 7
   m_Name: Player
   m_TagString: Player
@@ -10439,9 +10441,7 @@ MonoBehaviour:
   maxHealth: 200
   showDebugMessages: 1
   healthBar: {fileID: 0}
-  enemyTag: BadFish
-  collisionDamage: 10
-  knockbackForce: 3
+  knockbackForce: 5
   knockbackDuration: 0.2
   invulnerabilityDuration: 1.5
   showFlashOnHit: 1
@@ -10474,6 +10474,19 @@ MonoBehaviour:
   showDebug: 0
   oxygenBar: {fileID: 0}
   playerHealth: {fileID: 0}
+--- !u!114 &1268855938238338522
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6011182070930345703}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dec4f635cc9578d45b9bbb0900319124, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  worldBoundsCollider: {fileID: 0}
 --- !u!1 &6347064937072707375
 GameObject:
   m_ObjectHideFlags: 0
@@ -10501,7 +10514,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.8852388, y: 1.8852388, z: 1.8852388}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 2317616602117603697}

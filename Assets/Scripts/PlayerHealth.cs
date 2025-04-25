@@ -79,8 +79,23 @@ public class PlayerHealth : MonoBehaviour
             deathUIPanel.SetActive(false);
         }
         
-        // Find spawn point and store position
-        GameObject spawnPoint = GameObject.Find(spawnPointName);
+        // Find spawn point and store position for respawn (do NOT move the player here)
+        string effectiveSpawnPointName = spawnPointName;
+        if (!string.IsNullOrEmpty(SceneTransitionData.nextSpawnPointName))
+        {
+            var overrideSpawn = GameObject.Find(SceneTransitionData.nextSpawnPointName);
+            if (overrideSpawn != null)
+            {
+                Debug.Log($"[PlayerHealth] Using teleport override spawn point: {SceneTransitionData.nextSpawnPointName}", this);
+                effectiveSpawnPointName = SceneTransitionData.nextSpawnPointName;
+            }
+            else
+            {
+                Debug.LogWarning($"[PlayerHealth] Teleport override spawn point '{SceneTransitionData.nextSpawnPointName}' not found, falling back to default.", this);
+            }
+            // Do NOT clear SceneTransitionData.nextSpawnPointName here!
+        }
+        GameObject spawnPoint = GameObject.Find(effectiveSpawnPointName);
         if (spawnPoint != null)
         {
             respawnPosition = spawnPoint.transform.position;
@@ -89,7 +104,7 @@ public class PlayerHealth : MonoBehaviour
         {
             // If no spawn point is found, use current position
             respawnPosition = transform.position;
-            Debug.LogWarning($"PlayerHealth: No spawn point named '{spawnPointName}' found. Using current position.", this);
+            Debug.LogWarning($"PlayerHealth: No spawn point named '{effectiveSpawnPointName}' found. Using current position.", this);
         }
         
         // Find and cache references to arm/aim scripts on ArmPivot child
@@ -408,26 +423,23 @@ public class PlayerHealth : MonoBehaviour
     /// <param name="amount">Amount of damage to apply</param>
     public void TakeDamage(int amount)
     {
-        // Don't take damage if invulnerable
-        if (isInvulnerable) return;
-        
-        // Validate damage amount
-        if (amount <= 0) return;
-        
-        // Apply damage
+        // Don't take damage if invulnerable and amount is positive (damage)
+        if (isInvulnerable && amount > 0) return;
+        // Ignore zero
+        if (amount == 0) return;
+        // Apply damage or healing
         currentHealth -= amount;
-        
-        // Clamp health to 0
-        currentHealth = Mathf.Max(0, currentHealth);
-        
+        // Clamp health between 0 and maxHealth
+        currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
         // Update the health bar
         UpdateHealthBar();
-        
         if (showDebugMessages)
         {
-            Debug.Log($"Player took {amount} damage, current health: {currentHealth}");
+            if (amount > 0)
+                Debug.Log($"Player took {amount} damage, current health: {currentHealth}");
+            else
+                Debug.Log($"Player healed {-amount}, current health: {currentHealth}");
         }
-        
         // Check if should die
         if (currentHealth <= 0)
         {

@@ -131,7 +131,7 @@ CircleCollider2D:
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 640
+    m_Bits: 17024
   m_LayerOverridePriority: 0
   m_ForceSendLayers:
     serializedVersion: 2
@@ -271,7 +271,7 @@ MonoBehaviour:
   debugCollisions: 1
   collisionLayers:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 16383
   ignoreShooterTime: 0.1
   damageAmount: 2
 --- !u!114 &-1055244306322232217
