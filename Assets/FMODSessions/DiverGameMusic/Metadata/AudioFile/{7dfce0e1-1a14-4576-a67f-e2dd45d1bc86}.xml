@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.02.02.00">
+	<object class="AudioFile" id="{7dfce0e1-1a14-4576-a67f-e2dd45d1bc86}">
+		<property name="assetPath">
+			<value>Enemy/BossGrowl.mp3</value>
+		</property>
+		<property name="frequencyInKHz">
+			<value>48</value>
+		</property>
+		<property name="channelCount">
+			<value>2</value>
+		</property>
+		<property name="length">
+			<value>7.1040000000000001</value>
+		</property>
+		<relationship name="masterAssetFolder">
+			<destination>{635026fa-0e1f-4d79-8922-5d09a192234d}</destination>
+		</relationship>
+	</object>
+</objects>

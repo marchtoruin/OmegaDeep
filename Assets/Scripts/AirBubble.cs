@@ -14,6 +14,9 @@ public class AirBubble : MonoBehaviour
     [Tooltip("Layer to check for map collision before respawning")] 
     public LayerMask collisionLayer;
 
+    [Tooltip("Radius for collision check when respawning (use small value)")]
+    public float overlapRadius = 0.05f;
+
     [Header("FMOD Settings")]
     [Tooltip("FMOD event to play when bubble is collected")] 
     [SerializeField] private EventReference collectFmodEvent;
@@ -21,6 +24,7 @@ public class AirBubble : MonoBehaviour
     private Collider2D bubbleCollider;
     private SpriteRenderer bubbleRenderer;
     private bool hasBeenCollected = false;
+    private Vector3 initialPosition; // Store the starting position
 
     private void Awake()
     {
@@ -30,18 +34,23 @@ public class AirBubble : MonoBehaviour
 
     private void Start()
     {
-        // At scene start, only enable when collision is present
-        if (bubbleCollider != null) bubbleCollider.enabled = false;
-        if (bubbleRenderer != null) bubbleRenderer.enabled = false;
-        StartCoroutine(WaitForCollisionAndEnable());
+        initialPosition = transform.position; // Store initial position
+        // At scene start, assume collision is present
+        // if (bubbleCollider != null) bubbleCollider.enabled = false;
+        // if (bubbleRenderer != null) bubbleRenderer.enabled = false;
+        // StartCoroutine(WaitForCollisionAndEnable());
+        if (bubbleCollider != null) bubbleCollider.enabled = true; // Enable directly
+        if (bubbleRenderer != null) bubbleRenderer.enabled = true; // Enable directly
     }
 
+    /* // Coroutine no longer needed if map is always present
     private IEnumerator WaitForCollisionAndEnable()
     {
         bool foundCollision = false;
         while (!foundCollision)
         {
-            Collider2D hit = Physics2D.OverlapPoint(transform.position, collisionLayer);
+            // Check collision at the initial position using OverlapCircle
+            Collider2D hit = Physics2D.OverlapCircle(initialPosition, overlapRadius, collisionLayer);
             if (hit != null)
             {
                 foundCollision = true;
@@ -54,6 +63,7 @@ public class AirBubble : MonoBehaviour
         if (bubbleCollider != null) bubbleCollider.enabled = true;
         if (bubbleRenderer != null) bubbleRenderer.enabled = true;
     }
+    */
 
     private void OnTriggerEnter2D(Collider2D other)
     {
@@ -83,29 +93,46 @@ public class AirBubble : MonoBehaviour
         // Hide bubble
         if (bubbleCollider != null) bubbleCollider.enabled = false;
         if (bubbleRenderer != null) bubbleRenderer.enabled = false;
-        hasBeenCollected = false;
+        // hasBeenCollected = false; // Keep true until fully respawned
+        Debug.Log($"[{gameObject.name}] RespawnRoutine: Hiding bubble. Waiting {respawnTime}s.", this);
 
         // Wait for respawn time
         yield return new WaitForSeconds(respawnTime);
 
-        // Wait until map collision is loaded at this position
+        Debug.Log($"[{gameObject.name}] RespawnRoutine: Finished waiting. Skipping collision check.", this);
+        /* // Collision check loop removed
         bool foundCollision = false;
-        while (!foundCollision)
+        int checkCount = 0; // Limit check count for debugging
+        while (!foundCollision && checkCount < 100) // Added checkCount limit
         {
-            // Check for any collider on the collision layer at this position
-            Collider2D hit = Physics2D.OverlapPoint(transform.position, collisionLayer);
+            checkCount++;
+            // Check for any collider on the collision layer at the INITIAL position using OverlapCircle
+            Collider2D hit = Physics2D.OverlapCircle(initialPosition, overlapRadius, collisionLayer);
             if (hit != null)
             {
+                Debug.Log($"[{gameObject.name}] RespawnRoutine: Found collision layer ({hit.gameObject.layer}) at initial position {initialPosition}. Respawning.", this);
                 foundCollision = true;
             }
             else
             {
+                Debug.Log($"[{gameObject.name}] RespawnRoutine: No collision layer found at initial position {initialPosition}. Waiting 0.2s (Check #{checkCount}).", this);
                 yield return new WaitForSeconds(0.2f); // Check again in 0.2s
             }
         }
 
+        if (!foundCollision)
+        {
+            Debug.LogWarning($"[{gameObject.name}] RespawnRoutine: Failed to find collision layer after {checkCount} checks. Aborting respawn.", this);
+            yield break; // Exit if collision wasn't found after limit
+        }
+        */
+
+        // Reset position before reactivating
+        transform.position = initialPosition;
+        Debug.Log($"[{gameObject.name}] RespawnRoutine: Reset position to {initialPosition}. Reactivating bubble.", this);
         // Reactivate bubble
         if (bubbleCollider != null) bubbleCollider.enabled = true;
         if (bubbleRenderer != null) bubbleRenderer.enabled = true;
+        hasBeenCollected = false; // Now safe to allow collection again
     }
 } 

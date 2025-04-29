@@ -18,6 +18,9 @@ public class badFishHealth : MonoBehaviour
     [SerializeField] private float bossMaxDamagePercent = 0.2f; // Maximum damage per hit as percentage of max health (0.2 = 20%)
     [SerializeField] private int bossDamageMultiplier = 2; // How much more damage boss fish do to the player
     
+    // Public getter for the boss health bar color
+    public Color BossHealthBarColor => bossHealthBarColor;
+    
     // Current health tracking
     private int currentHealth;
     private int originalMaxHealth; // Store original max health for reference
@@ -501,5 +504,44 @@ public class badFishHealth : MonoBehaviour
         {
             sr.color = isBoss ? bossHealthBarColor : Color.white;
         }
+    }
+
+    /// <summary>
+    /// Applies a multiplier to the fish's health, used for boss variants.
+    /// Recalculates max health and sets current health to the new maximum.
+    /// Stores the original base health if not already done.
+    /// </summary>
+    /// <param name="multiplier">The factor to multiply the base max health by.</param>
+    public void ApplyHealthMultiplier(float multiplier)
+    {
+        if (multiplier <= 1f)
+        {
+            Debug.LogWarning($"[{gameObject.name}] ApplyHealthMultiplier called with multiplier <= 1 ({multiplier}). No change applied.", this);
+            return;
+        }
+
+        // Ensure originalMaxHealth is stored correctly before modification
+        // If originalMaxHealth hasn't been set or matches current maxHealth, store it now.
+        // This handles cases where SetupBossAttributes might be called before originalMaxHealth is properly stored.
+        if (originalMaxHealth <= 0 || originalMaxHealth == maxHealth)
+        {
+             originalMaxHealth = maxHealth; // Store the current maxHealth as the base
+             if(showDebugMessages) Debug.Log($"[{gameObject.name}] Storing base max health: {originalMaxHealth}", this);
+        }
+
+
+        // Calculate new max health based on the *original* value
+        maxHealth = Mathf.CeilToInt(originalMaxHealth * multiplier);
+        currentHealth = maxHealth; // Heal the boss to the new full health
+
+        if(showDebugMessages || isBoss) // Log for bosses or if debug is on
+        {
+            Debug.Log($"[{gameObject.name}] Health Multiplier Applied: {multiplier}x. Base Health: {originalMaxHealth}, New Max Health: {maxHealth}", this);
+        }
+
+
+        // Optional: Update health bar if it exists and needs manual update
+        // Make sure UpdateHealthBar can handle the new maxHealth value correctly
+        UpdateHealthBar();
     }
 }

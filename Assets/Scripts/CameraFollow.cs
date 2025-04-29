@@ -15,11 +15,23 @@ public class CameraFollow : MonoBehaviour
     public BoxCollider2D worldBoundsCollider; // Reference to the world bounds collider
     
     [Header("Dynamic Offset Settings")]
+    [SerializeField] private bool useDynamicOffset = true; // Can be disabled entirely here if needed
     [SerializeField] private float aheadOffset = 6f; // How far ahead to look in the facing direction
     [SerializeField] private float offsetLerpSpeed = 6f; // How quickly the offset transitions
     [SerializeField] private SpriteRenderer playerSprite; // Reference to the player's SpriteRenderer
     private float currentDynamicOffsetX = 0f; // Smoothed offset value
     
+    // --- New field to control dynamic offset behavior ---
+    private bool dynamicOffsetActive = true;
+    // ----------------------------------------------------
+
+    // --- New Zoom Settings ---
+    [Header("Zoom Settings")]
+    [Tooltip("How quickly the camera zooms in/out")]
+    public float zoomSmoothSpeed = 2f;
+    private float currentTargetOrthographicSize;
+    private float previousOrthographicSize; // Store the size before SetTargetZoom
+
     private Camera cam;
     private float camHalfHeight;
     private float camHalfWidth;
@@ -67,6 +79,14 @@ public class CameraFollow : MonoBehaviour
         }
         
         UpdateCameraMetrics();
+
+        // Initialize dynamic offset state based on inspector setting
+        dynamicOffsetActive = useDynamicOffset;
+        currentDynamicOffsetX = offset.x; // Start centered or with base offset
+
+        // Initialize target and previous zoom
+        currentTargetOrthographicSize = cam.orthographicSize;
+        previousOrthographicSize = currentTargetOrthographicSize; // Start with same values
     }
     
     void UpdateCameraMetrics()
@@ -98,8 +118,21 @@ public class CameraFollow : MonoBehaviour
 
     void LateUpdate()
     {
-        // Exit if no target
-        if (target == null) return;
+        if (target == null || cam == null) return; // Added null check for cam
+
+        // --- Smooth Zoom ---
+        // Check if zoom needs changing
+        if (Mathf.Abs(cam.orthographicSize - currentTargetOrthographicSize) > 0.01f)
+        {
+            // Interpolate towards the target size
+            cam.orthographicSize = Mathf.Lerp(cam.orthographicSize, currentTargetOrthographicSize, zoomSmoothSpeed * Time.deltaTime);
+            // IMPORTANT: Update camera metrics immediately after size change for accurate clamping
+            UpdateCameraMetrics();
+        }
+        // -------------------
+
+        // If we have a new camera *aspect ratio*, update metrics (less common)
+        // if (cam.aspect * camHalfHeight != camHalfWidth) { UpdateCameraMetrics(); } // More precise check if aspect changes
         
         // If we have a new camera size, update metrics
         if (cam != null && cam.orthographicSize != camHalfHeight)
@@ -107,21 +140,35 @@ public class CameraFollow : MonoBehaviour
             UpdateCameraMetrics();
         }
         
-        // --- Dynamic Offset Logic ---
-        float targetOffsetX = offset.x;
-        if (playerSprite != null)
+        // --- Modified Dynamic Offset Logic ---
+        Vector3 currentOffset = offset; // Start with the base offset
+
+        // Only calculate and apply dynamic offset if enabled globally AND currently active
+        if (useDynamicOffset && dynamicOffsetActive)
         {
-            float direction = playerSprite.flipX ? -1f : 1f;
-            targetOffsetX = aheadOffset * direction;
+            float targetOffsetX = offset.x; // Default to base if no player sprite
+            if (playerSprite != null)
+            {
+                float direction = playerSprite.flipX ? -1f : 1f;
+                targetOffsetX = aheadOffset * direction;
+            }
+            // Smoothly interpolate the offset X value towards the dynamic target
+            currentDynamicOffsetX = Mathf.Lerp(currentDynamicOffsetX, targetOffsetX, offsetLerpSpeed * Time.deltaTime);
+            currentOffset.x = currentDynamicOffsetX; // Use the dynamic X
         }
-        // Smoothly interpolate the offset X value
-        currentDynamicOffsetX = Mathf.Lerp(currentDynamicOffsetX, targetOffsetX, offsetLerpSpeed * Time.deltaTime);
-        Vector3 dynamicOffset = offset;
-        dynamicOffset.x = currentDynamicOffsetX;
-        // --- End Dynamic Offset Logic ---
+        else
+        {
+             // If dynamic offset is disabled (globally or via trigger),
+             // smoothly return the current dynamic offset towards the base offset X
+             currentDynamicOffsetX = Mathf.Lerp(currentDynamicOffsetX, offset.x, offsetLerpSpeed * Time.deltaTime);
+             currentOffset.x = currentDynamicOffsetX; // Use the (potentially resetting) dynamic X
+             // Or uncomment below for an immediate snap to base offset:
+             // currentOffset.x = offset.x;
+        }
+        // --- End Modified Dynamic Offset Logic ---
         
-        // Calculate desired position (target + dynamic offset)
-        Vector3 desiredPosition = target.position + dynamicOffset;
+        // Calculate desired position (target + potentially modified offset)
+        Vector3 desiredPosition = target.position + currentOffset;
         
         // Apply smooth follow
         Vector3 smoothedPosition = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed);
@@ -186,4 +233,50 @@ public class CameraFollow : MonoBehaviour
     {
         UpdateCameraMetrics();
     }
+
+    // --- Modified public method ---
+    public void SetFollowMode(CameraCenter.FollowAction mode) // Changed enum type
+    {
+        switch (mode)
+        {
+            case CameraCenter.FollowAction.CenterOnPlayer:
+                dynamicOffsetActive = false;
+                Debug.Log("CameraFollow: Centering enabled (Dynamic Offset OFF)");
+                break;
+            case CameraCenter.FollowAction.ResumeFollowing:
+                dynamicOffsetActive = true;
+                Debug.Log("CameraFollow: Normal following resumed (Dynamic Offset ON)");
+                break;
+            // Do nothing for DoNothing case
+        }
+    }
+
+    // --- Modified SetTargetZoom ---
+    public void SetTargetZoom(float targetSize)
+    {
+        if (targetSize > 0)
+        {
+            // Store the *current* target size as previous *before* changing it
+            // Only store if the new target is actually different
+            if (Mathf.Abs(currentTargetOrthographicSize - targetSize) > 0.01f)
+            {
+                previousOrthographicSize = currentTargetOrthographicSize;
+                Debug.Log($"CameraFollow: Storing previous zoom: {previousOrthographicSize}");
+            }
+            currentTargetOrthographicSize = targetSize;
+            Debug.Log($"CameraFollow: Setting target zoom to {targetSize}");
+        }
+        else
+        {
+             Debug.LogWarning($"CameraFollow: Invalid target zoom size requested: {targetSize}");
+        }
+    }
+
+    // --- New public method for Zoom Resume ---
+    public void ResumePreviousZoom()
+    {
+        currentTargetOrthographicSize = previousOrthographicSize;
+        Debug.Log($"CameraFollow: Resuming previous zoom: {currentTargetOrthographicSize}");
+    }
+    // ---------------------------------------
 }

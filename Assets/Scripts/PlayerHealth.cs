@@ -153,7 +153,24 @@ public class PlayerHealth : MonoBehaviour
     // Handle both regular collisions and triggers
     void OnCollisionEnter2D(Collision2D collision)
     {
-        HandleEnemyHit(collision.gameObject);
+        GameObject otherObject = collision.gameObject;
+
+        // --- Check for Red Orb Collection ---
+        if (otherObject.CompareTag("airBubble")) // Check if it's tagged like our RedOrb
+        {
+            RedOrbCollect orbCollect = otherObject.GetComponent<RedOrbCollect>();
+            if (orbCollect != null)
+            {
+                int healAmount = orbCollect.GetHealAmount();
+                Debug.Log($"[PlayerHealth] Collided with Red Orb. Healing for {healAmount}.", this);
+                TakeDamage(-healAmount); // Apply healing (negative damage)
+                Destroy(otherObject); // Destroy the orb
+                return; // Exit early, don't process as enemy hit
+            }
+        }
+
+        // --- Existing Enemy Hit Logic ---
+        HandleEnemyHit(otherObject);
     }
 
     void OnTriggerEnter2D(Collider2D collider)
@@ -169,7 +186,9 @@ public class PlayerHealth : MonoBehaviour
     // Centralized enemy hit logic with optional damage parameter
     private void HandleEnemyHit(GameObject enemy, int customDamage = 0)
     {
-        Debug.Log($"[PlayerHealth] Collision detected with {enemy.name}", enemy);
+        // NOTE: Red Orb logic is now handled in OnCollisionEnter2D above
+        //       This function now only handles actual damaging enemies.
+        Debug.Log($"[PlayerHealth] HandleEnemyHit check for {enemy.name}", enemy);
         
         // Check if this is an enemy by looking for either EnemyCollision or JellyfishHealth component
         bool isEnemy = enemy.GetComponent<EnemyCollision>() != null || 
@@ -248,7 +267,7 @@ public class PlayerHealth : MonoBehaviour
         }
         else if (isInvulnerable && isEnemy)
         {
-            Debug.Log("[PlayerHealth] Player is invulnerable, ignoring hit.");
+            Debug.Log("[PlayerHealth] Player is invulnerable, ignoring enemy hit.");
         }
     }
     

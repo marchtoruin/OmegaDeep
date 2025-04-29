@@ -26,6 +26,9 @@ public class DiverMovement : MonoBehaviour
     [Header("Child Object References")]
     [SerializeField] private Transform bloodSplatTransform; // Assign bloodSpatter_1 transform
     [SerializeField] private float bloodSplatOffsetX = 0.5f; // Desired offset from player center
+    [SerializeField] private Transform faceMaskLightPivotTransform; // Assign the FaceMaskLightPivot transform
+    private float faceMaskLightOriginalOffsetX = 0f; // Store the original X offset
+    private Quaternion faceMaskLightOriginalRotation; // Store original rotation
     
     [Header("Bubble Effect Settings")]
     [SerializeField] private ParticleSystem boostBubbles; // Particle system for boost bubbles
@@ -92,6 +95,18 @@ public class DiverMovement : MonoBehaviour
         {
             Debug.LogWarning("[DiverMovement] TimeScale was 0, resetting to 1.0", this);
             Time.timeScale = 1.0f;
+        }
+
+        // Store original local position and rotation for the light pivot
+        if (faceMaskLightPivotTransform != null)
+        {
+            faceMaskLightOriginalOffsetX = faceMaskLightPivotTransform.localPosition.x;
+            faceMaskLightOriginalRotation = faceMaskLightPivotTransform.localRotation;
+            Debug.Log($"[DiverMovement] Stored FaceMaskLight original offsetX: {faceMaskLightOriginalOffsetX}, originalRot: {faceMaskLightOriginalRotation.eulerAngles}", this);
+        }
+        else
+        {
+            Debug.LogWarning("[DiverMovement] FaceMaskLightPivotTransform not assigned in inspector! Light flipping won't work.", this);
         }
 
         playerOxygen = GetComponent<PlayerOxygen>();
@@ -309,6 +324,9 @@ public class DiverMovement : MonoBehaviour
 
     void Update()
     {
+        // --- DEBUG LOGS --- 
+        // Debug.Log($"[DiverMovement Debug] Update Start. Time Scale: {Time.timeScale}, hasSpawned: {hasSpawned}");
+
         // Don't process input until we've spawned
         if (!hasSpawned) return;
         
@@ -407,9 +425,12 @@ public class DiverMovement : MonoBehaviour
         }
     }
 
-    // Handle flipping the helmet bubble emitter based on movement direction
+    // Handle flipping the helmet bubble emitter and face mask light based on movement direction
     private void UpdateHelmetBubbleEmitterFlip()
     {
+        // --- DEBUG LOG --- 
+        Debug.Log("[DiverMovement Debug] Entering UpdateHelmetBubbleEmitterFlip");
+
         bool isFlipped = false;
         // First try to determine flip state from the sprite renderer
         if (playerSprite != null)
@@ -424,6 +445,9 @@ public class DiverMovement : MonoBehaviour
         
         // Convert to facing direction (true = right, false = left)
         bool isFacingRight = !isFlipped;
+
+        // --- DEBUG LOG --- 
+        Debug.Log($"[DiverMovement Debug] UpdateFlip: isFacingRight = {isFacingRight} (Sprite.flipX = {playerSprite?.flipX})");
 
         // --- Flip Blood Spatter Child Position AND Scale --- 
         if (bloodSplatTransform != null)
@@ -447,6 +471,42 @@ public class DiverMovement : MonoBehaviour
             }
         }
         // --- End Flip Blood Spatter --- 
+
+        // --- Flip Face Mask Light Pivot --- 
+        if (faceMaskLightPivotTransform != null)
+        {
+            // Mirroring FlashlightController logic:
+            if (isFacingRight) // Should face right (original state)
+            {
+                // Restore original position and rotation if necessary
+                if (Mathf.Abs(faceMaskLightPivotTransform.localPosition.x - faceMaskLightOriginalOffsetX) > 0.01f || 
+                    Quaternion.Angle(faceMaskLightPivotTransform.localRotation, faceMaskLightOriginalRotation) > 0.1f)
+                {
+                    Debug.Log("[DiverMovement Debug] Restoring Light Pivot to RIGHT facing state.");
+                    faceMaskLightPivotTransform.localPosition = new Vector3(faceMaskLightOriginalOffsetX, faceMaskLightPivotTransform.localPosition.y, faceMaskLightPivotTransform.localPosition.z);
+                    faceMaskLightPivotTransform.localRotation = faceMaskLightOriginalRotation;
+                }
+            }
+            else // Should face left (flipped state)
+            {
+                float targetPosX = -faceMaskLightOriginalOffsetX;
+                Quaternion targetRot = Quaternion.Euler(
+                    faceMaskLightOriginalRotation.eulerAngles.x,
+                    faceMaskLightOriginalRotation.eulerAngles.y + 180f,
+                    faceMaskLightOriginalRotation.eulerAngles.z
+                );
+
+                // Apply flipped position and rotation if necessary
+                if (Mathf.Abs(faceMaskLightPivotTransform.localPosition.x - targetPosX) > 0.01f ||
+                    Quaternion.Angle(faceMaskLightPivotTransform.localRotation, targetRot) > 0.1f)
+                {
+                    Debug.Log("[DiverMovement Debug] Flipping Light Pivot to LEFT facing state.");
+                    faceMaskLightPivotTransform.localPosition = new Vector3(targetPosX, faceMaskLightPivotTransform.localPosition.y, faceMaskLightPivotTransform.localPosition.z);
+                    faceMaskLightPivotTransform.localRotation = targetRot;
+                }
+            }
+        }
+        // --- End Flip Face Mask Light --- 
 
         // Existing Helmet Bubble Emitter Logic
         if (helmetBubbleEmitterTransform != null)

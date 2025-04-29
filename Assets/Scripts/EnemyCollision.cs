@@ -94,7 +94,7 @@ public class EnemyCollision : MonoBehaviour
         // Notify AI component about player collision
         if (aiComponent != null)
         {
-            aiComponent.OnPlayerCollision();
+            aiComponent.OnAttacked();
         }
         
         // Get or update the player's rigidbody if needed

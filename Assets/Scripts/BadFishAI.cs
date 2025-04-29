@@ -1,1208 +1,810 @@
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+using FMODUnity; // <-- Add FMOD namespace
 
 [RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(badFishHealth))] // Ensure health component exists
 public class BadFishAI : MonoBehaviour
 {
-    [Header("Detection Settings")]
-    [SerializeField] private float playerDetectionRange = 5f;
-    [SerializeField] private float aggroRange = 8f; // Range at which the fish will pursue when hit
-    [SerializeField] private LayerMask obstacleLayer; // Layer for obstacles the fish should avoid
+    #region Inspector Settings
+
+    [Header("General Settings")]
     [SerializeField] private bool showDebugGizmos = true;
-    
-    [Header("Movement Settings")]
-    [SerializeField] private float patrolSpeed = 2f;
-    [SerializeField] private float chaseSpeed = 4f;
-    [SerializeField] private float rotationSpeed = 3f;
+    [SerializeField] public bool artworkFacesRight = true; // Sprite orientation
+
+    [Header("Detection & Aggro")]
+    [SerializeField] private float playerDetectionRange = 6f;
+    [SerializeField] private float aggroRange = 10f; // Max distance to maintain aggro
+    [SerializeField] private float maxAggroTime = 8f; // How long aggro lasts without seeing player
+    [SerializeField] private LayerMask obstacleLayer; // Layers fish sees as obstacles
+
+    [Header("Movement")]
+    [SerializeField] private float basePatrolSpeed = 2f;
+    [SerializeField] private float baseChaseSpeed = 4f;
+    [SerializeField] private float rotationSpeed = 5f; // How quickly the fish turns
+    [SerializeField] private float minDistanceToPlayer = 1.5f; // Minimum distance during chase
+
+    [Header("Patrolling")]
+    [SerializeField] private bool useRandomPatrolPoints = true;
+    [SerializeField] private float patrolRadius = 5f; // Used if useRandomPatrolPoints is true
+    [SerializeField] private int maxRandomPatrolPoints = 4; // Used if useRandomPatrolPoints is true
+    [SerializeField] private Vector2[] explicitPatrolPoints; // Used if useRandomPatrolPoints is false
     [SerializeField] private float minDistanceToWaypoint = 0.5f;
-    [SerializeField] private float minDistanceToPlayer = 1f; // Don't get too close to player
-    
-    [Header("Physics Settings")]
-    [SerializeField] private RigidbodyType2D bodyType = RigidbodyType2D.Dynamic;
-    [SerializeField] private CollisionDetectionMode2D collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-    
-    [Header("Patrol Settings")]
-    [SerializeField] private Vector2[] patrolPoints; // Manual patrol points if needed
-    [SerializeField] private float patrolRadius = 5f; // Automatic patrol radius from spawn
-    [SerializeField] private float patrolPointWaitTime = 1.5f; // Time to wait at patrol points
-    [SerializeField] private bool useRandomPatrolPoints = true; // Generate random patrol points
-    [SerializeField] private int maxRandomPatrolPoints = 4; // Max number of random patrol points
-    
-    [Header("Appearance Settings")]
-    [SerializeField] public bool artworkFacesRight = true; // Set based on which way your sprite artwork naturally faces
-    [SerializeField] private bool debugOrientation = false; // Turn this on to debug orientation issues
-    
-    [Header("Boss Configuration")]
-    [SerializeField] private bool isBoss = false; // Is this fish a mini-boss?
-    [SerializeField] private float bossSpeedMultiplier = 1.2f; // Boss is faster
-    [SerializeField] private float bossAggroRangeMultiplier = 1.5f; // Boss detects player from further away
-    [SerializeField] private float bossChaseTimeMultiplier = 2f; // Boss chases for longer
-    [SerializeField] private Color bossColor = new Color(1f, 0.5f, 0.5f, 1f); // Reddish tint for boss fish
-    [SerializeField] private bool showBossDebugLogs = true; // Show debugging for boss fish
-    
-    [Header("Collision Avoidance")]
-    [SerializeField] private float collisionAvoidanceRadius = 1.5f; // How far ahead to check for collisions
-    [SerializeField] private float collisionAvoidanceForce = 5f; // How strongly to avoid collisions
-    [SerializeField] private LayerMask collisionLayers; // Layers to avoid (should include floor and other obstacles)
-    [SerializeField] private float raycastSpacing = 0.5f; // Space between raycasts for collision detection
-    
-    // State tracking
-    private enum FishState { Patrol, Chase, Flee, Stunned }
+    [SerializeField] private float patrolPointWaitTime = 1.5f;
+
+    [Header("Boss Settings")]
+    [SerializeField] public bool isBoss = false; // Activate Boss behaviors
+    [SerializeField] private float bossHealthMultiplier = 3f;
+    [SerializeField] private float bossSpeedMultiplier = 1.5f;
+    [SerializeField] private float bossScaleMultiplier = 2f;
+
+    [Header("Boss Charge Attack")]
+    [SerializeField] private float chargeWindupTime = 0.75f; // Visible delay before charge
+    [SerializeField] private float chargeSpeed = 10f; // Speed during charge dash
+    [SerializeField] private float chargeDuration = 0.6f; // How long the charge dash lasts
+    [SerializeField] private float chargeDamageMultiplier = 2f; // Damage increase during charge
+    [SerializeField] private float postChargeWanderDuration = 0.75f; // How long to wander after charge
+    [SerializeField] private float postChargeWanderSpeed = 1.5f; // Speed during post-charge wander
+    [SerializeField] private EventReference bossChargeSound; // FMOD Event for charge dash start <-- Add FMOD EventReference field
+
+    [Header("Cooldowns (Boss Only)")]
+    [SerializeField] private float aggroToChargeDelay = 2f; // Delay after becoming aggro before first charge
+    [SerializeField] private float chargeCooldown = 5f; // Delay between charges
+
+    #endregion
+
+    #region State
+
+    private enum FishState { Patrol, Chase, ChargingWindup, ChargingDash, PostChargeWander, Stunned }
     private FishState currentState = FishState.Patrol;
+    private bool facingLocked = false; // Flag to prevent flipping during certain actions
+
+    // Timers & Flags
+    private float stateTimer = 0f; // Generic timer for states like Patrol Wait or Stun
+    private float aggroTimer = 0f; // Tracks how long the fish remains aggro
+    private bool isAggro = false;
+    private float chargeStateTimer = 0f; // Tracks windup and dash duration
+    private bool isChargeOnCooldown = false;
+    private bool canChargeAfterAggro = false; // Tracks the aggro-to-charge delay
+
+    // Movement & Targeting
     private Vector2 startPosition;
     private Vector2 currentTarget;
     private int currentPatrolIndex = 0;
-    private List<Vector2> randomPatrolPoints = new List<Vector2>();
-    private float stateTimer = 0f;
-    private bool isWaitingAtPatrolPoint = false;
-    private bool isAggro = false;
-    private float aggroTimer = 0f;
-    private const float MAX_AGGRO_TIME = 8f;
-    
-    // Components
+    private List<Vector2> generatedPatrolPoints = new List<Vector2>();
+    private Vector2 chargeDirection;
+    private bool isFacingRight = true;
+    private float currentPatrolSpeed;
+    private float currentChaseSpeed;
+
+    // Coroutine References
+    private Coroutine chargeCooldownCoroutineRef = null;
+    private Coroutine aggroToChargeDelayCoroutineRef = null;
+
+    #endregion
+
+    #region Components
+
     private Rigidbody2D rb;
     private badFishHealth healthComponent;
     private SpriteRenderer spriteRenderer;
     private GameObject player;
-    
-    // Animation support
-    private bool isFacingRight = true;
-    
+
+    #endregion
+
+    #region Public Properties
+
+    // Used by external scripts (like a damage script) to check charge status
+    public bool IsCurrentlyCharging => currentState == FishState.ChargingDash;
+    public float ChargeDamageMultiplier => isBoss ? chargeDamageMultiplier : 1f;
+
+    #endregion
+
+    #region Unity Lifecycle Methods
+
     void Awake()
     {
+        // Get Components
         rb = GetComponent<Rigidbody2D>();
-        
-        // Log initial Rigidbody2D state
-        if (rb != null)
-        {
-            Debug.Log($"BadFishAI Awake - INITIAL Rigidbody2D state: Type={rb.bodyType}, GameObject={gameObject.name}", this);
-        }
-        
         healthComponent = GetComponent<badFishHealth>();
-        spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-        
-        // Store spawn position for patrol radius
-        startPosition = transform.position;
-        
-        // FORCE Dynamic body type for proper collisions with static objects
-        if (rb != null)
-        {
-            // Override inspector settings to ensure Dynamic mode
-            Debug.Log($"BadFishAI Awake - Setting Rigidbody2D from {rb.bodyType} to Dynamic", this);
-            rb.bodyType = RigidbodyType2D.Dynamic;
-            rb.collisionDetectionMode = collisionDetectionMode;
-            
-            // Log what we did
-            Debug.Log($"BadFishAI: FORCING Rigidbody2D to Dynamic mode for proper collisions with static objects", this);
-            
-            // Start watching for bodyType changes
-            StartCoroutine(MonitorBodyTypeChanges());
-        }
+        spriteRenderer = GetComponentInChildren<SpriteRenderer>(); // Assumes sprite is on child
+
+        if (rb == null) Debug.LogError($"BadFishAI on {gameObject.name}: Rigidbody2D component not found!", this);
+        if (healthComponent == null) Debug.LogError($"BadFishAI on {gameObject.name}: badFishHealth component not found!", this);
+        if (spriteRenderer == null) Debug.LogWarning($"BadFishAI on {gameObject.name}: SpriteRenderer component not found on children.", this);
+
+        // Apply Boss Modifiers
+        ApplyBossModifiers();
+
+        // Set initial facing direction based on artwork
+        isFacingRight = artworkFacesRight;
+        if (spriteRenderer != null) spriteRenderer.flipX = !artworkFacesRight; // Initial flip if needed
     }
-    
-    // Coroutine to watch for changes to the Rigidbody2D bodyType
-    private IEnumerator MonitorBodyTypeChanges()
-    {
-        if (rb == null) yield break;
-        
-        RigidbodyType2D lastType = rb.bodyType;
-        
-        while (true)
-        {
-            // Check if bodyType changed
-            if (rb.bodyType != lastType)
-            {
-                Debug.LogWarning($"BadFishAI: Rigidbody2D bodyType CHANGED from {lastType} to {rb.bodyType} on {gameObject.name}", this);
-                
-                // Capture stack trace to find what's changing it
-                string stackTrace = System.Environment.StackTrace;
-                Debug.LogWarning($"Stack trace at bodyType change: {stackTrace}", this);
-                
-                // Update last known type
-                lastType = rb.bodyType;
-                
-                // Force back to Dynamic if needed
-                if (rb.bodyType != RigidbodyType2D.Dynamic)
-                {
-                    Debug.LogWarning($"BadFishAI: Forcing Rigidbody2D back to Dynamic mode", this);
-                    rb.bodyType = RigidbodyType2D.Dynamic;
-                }
-            }
-            
-            yield return new WaitForSeconds(0.1f); // Check every 10th of a second
-        }
-    }
-    
+
     void Start()
     {
-        // Get components
-        // NOTE: We already get the Rigidbody2D in Awake, don't override it again
-        // rb = GetComponent<Rigidbody2D>();
-        
-        // Check for component conflicts
-        CheckForConflictingComponents();
-        
-        // Re-check Rigidbody settings at Start in case something changed them
-        if (rb != null && rb.bodyType != RigidbodyType2D.Dynamic)
-        {
-            Debug.LogWarning($"BadFishAI: Rigidbody2D bodyType changed since Awake. Was: {rb.bodyType}, resetting to Dynamic", this);
-            rb.bodyType = RigidbodyType2D.Dynamic;
-        }
-        
-        healthComponent = GetComponent<badFishHealth>();
-        spriteRenderer = GetComponent<SpriteRenderer>();
-        
-        // Find player
+        // Find Player
         player = GameObject.FindGameObjectWithTag("Player");
-        
-        // Store starting position
+        if (player == null) Debug.LogError($"BadFishAI on {gameObject.name}: Player GameObject not found! Ensure player has 'Player' tag.", this);
+
+        // Setup Patrolling
         startPosition = transform.position;
-        Debug.Log($"[BadFishAI] {gameObject.name} Start() - startPosition: {startPosition}", this);
-        
-        // Validate colliders for physics collisions
-        ValidateColliders();
-        
-        // Synchronize boss status with health component
-        if (healthComponent != null)
-        {
-            // Check if the isBoss flags are different between components
-            bool healthIsBoss = healthComponent.IsBoss();
-            if (healthIsBoss != isBoss)
-            {
-                Debug.LogWarning($"Boss status mismatch between AI ({isBoss}) and Health ({healthIsBoss}) components on {gameObject.name}. Synchronizing to AI setting.", this);
-                healthComponent.SetBossStatus(isBoss);
-            }
-        }
-        
-        // Apply boss modifications if this is a boss fish
+        GeneratePatrolPoints();
+        SetNextPatrolTarget();
+
+        // Initialize State
+        currentState = FishState.Patrol;
+        isChargeOnCooldown = true; // Start with charge on cooldown for bosses
+        canChargeAfterAggro = false;
+
+        // Start initial cooldown if boss (moved out of removed block)
         if (isBoss)
         {
-            SetupBossAttributes();
-        }
-        
-        // Generate patrol points 
-        if (useRandomPatrolPoints)
-        {
-            GenerateRandomPatrolPoints();
-            // Log patrol points
-            string patrolPointsLog = "";
-            foreach (Vector2 pt in randomPatrolPoints)
-                patrolPointsLog += pt + ", ";
-            Debug.Log($"[BadFishAI] {gameObject.name} patrol points: {patrolPointsLog}", this);
-        }
-        
-        // Set initial state
-        currentState = FishState.Patrol;
-        Debug.Log($"[BadFishAI] {gameObject.name} entering Patrol state.", this);
-        SetNextPatrolTarget();
-        
-        // Run an initial orientation check
-        CheckAndFixOrientation();
-        
-        if (debugOrientation)
-        {
-            Debug.Log($"Fish initialized. Artwork naturally faces: {(artworkFacesRight ? "RIGHT" : "LEFT")}", this);
+             StartCoroutine(InitialChargeCooldown());
         }
     }
-    
-    private void CheckForConflictingComponents()
+
+    void Update()
     {
-        // Check for EnemyMovement component which might conflict with this script
-        EnemyMovement enemyMovement = GetComponent<EnemyMovement>();
-        if (enemyMovement != null)
+        if (player == null) return; // Don't do anything if player is missing
+
+        ProcessAggro();
+        StateMachineUpdate();
+    }
+
+    void FixedUpdate()
+    {
+        // Apply movement based on velocity set in Update methods
+        // (Rigidbody velocity is set directly in state updates)
+    }
+
+    #endregion
+
+    #region Initialization & Setup
+
+    private void ApplyBossModifiers()
+    {
+        // Store base speeds before potential modification
+        currentPatrolSpeed = basePatrolSpeed;
+        currentChaseSpeed = baseChaseSpeed;
+
+        if (isBoss)
         {
-            Debug.LogError($"CONFLICT DETECTED: {gameObject.name} has both BadFishAI and EnemyMovement components!", this);
-            Debug.LogError("EnemyMovement sets Rigidbody2D to Kinematic, which prevents collisions with static objects.", this);
-            Debug.LogError("Solution: Remove the EnemyMovement component or disable its 'modifyRigidbodyOnStart' property.", this);
-        }
-        
-        // Check for other scripts that might modify the Rigidbody2D
-        MonoBehaviour[] allComponents = GetComponents<MonoBehaviour>();
-        foreach (MonoBehaviour component in allComponents)
-        {
-            // Skip this component and known ones
-            if (component == this || component is EnemyMovement) continue;
-            
-            string componentName = component.GetType().Name.ToLower();
-            if (componentName.Contains("movement") || 
-                componentName.Contains("physics") || 
-                componentName.Contains("rigidbody") || 
-                componentName.Contains("motor"))
+            // Apply Health Multiplier (Requires method in badFishHealth)
+            if (healthComponent != null)
             {
-                Debug.LogWarning($"Potential conflict: {gameObject.name} has {component.GetType().Name} which might also modify Rigidbody2D settings.", this);
+                // Assuming badFishHealth has a method like this:
+                // public void ApplyHealthMultiplier(float multiplier) { maxHealth = Mathf.CeilToInt(maxHealth * multiplier); currentHealth = maxHealth; }
+                 healthComponent.ApplyHealthMultiplier(bossHealthMultiplier);
+                Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Applied health multiplier ({bossHealthMultiplier}x)", this);
+            }
+
+            // Apply Speed Multiplier
+            currentPatrolSpeed *= bossSpeedMultiplier;
+            currentChaseSpeed *= bossSpeedMultiplier;
+            Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Applied speed multiplier ({bossSpeedMultiplier}x). Chase Speed: {currentChaseSpeed}", this);
+
+            // Apply Scale Multiplier
+            transform.localScale *= bossScaleMultiplier;
+            Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Applied scale multiplier ({bossScaleMultiplier}x)", this);
+        }
+    }
+
+    private void GeneratePatrolPoints()
+    {
+        generatedPatrolPoints.Clear();
+        if (useRandomPatrolPoints)
+        {
+            generatedPatrolPoints.Add(startPosition); // Include start position
+            for (int i = 0; i < maxRandomPatrolPoints -1; i++)
+            {
+                float angle = Random.Range(0f, Mathf.PI * 2f);
+                float distance = Random.Range(patrolRadius * 0.3f, patrolRadius);
+                Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                generatedPatrolPoints.Add(startPosition + offset);
+            }
+            Debug.Log($"[BadFishAI] {gameObject.name}: Generated {generatedPatrolPoints.Count} random patrol points around {startPosition} within radius {patrolRadius}.", this);
+        }
+        else
+        {
+            if (explicitPatrolPoints == null || explicitPatrolPoints.Length == 0)
+            {
+                Debug.LogWarning($"[BadFishAI] {gameObject.name}: useRandomPatrolPoints is false, but no explicitPatrolPoints are set. Defaulting to start position.", this);
+                generatedPatrolPoints.Add(startPosition);
+            }
+            else
+            {
+                foreach (Vector2 point in explicitPatrolPoints)
+                {
+                    generatedPatrolPoints.Add(point);
+                }
+                 Debug.Log($"[BadFishAI] {gameObject.name}: Using {generatedPatrolPoints.Count} explicit patrol points.", this);
             }
         }
     }
-    
-    void Update()
+
+    private void SetNextPatrolTarget()
     {
-        Debug.Log($"[BadFishAI] {gameObject.name} Update() running. State: {currentState}", this);
-        // Check and fix orientation issues
-        CheckAndFixOrientation();
-        
-        // Process aggro timers and player detection
-        ProcessAggroState();
-        
-        // State machine behavior
+        if (generatedPatrolPoints.Count == 0)
+        {
+            currentTarget = startPosition; // Fallback
+            return;
+        }
+        currentPatrolIndex = (currentPatrolIndex + 1) % generatedPatrolPoints.Count;
+        currentTarget = generatedPatrolPoints[currentPatrolIndex];
+    }
+
+    // Coroutine for the initial charge cooldown when the boss spawns
+    private IEnumerator InitialChargeCooldown()
+    {
+         // This ensures the boss doesn't charge *immediately* upon spawning
+        yield return new WaitForSeconds(chargeCooldown * 0.5f); // Start with half cooldown
+        isChargeOnCooldown = false;
+        Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Initial charge cooldown finished.", this);
+    }
+
+
+    #endregion
+
+    #region State Machine
+
+    private void StateMachineUpdate()
+    {
         switch (currentState)
         {
             case FishState.Patrol:
                 UpdatePatrolState();
                 break;
-                
             case FishState.Chase:
                 UpdateChaseState();
                 break;
-                
-            case FishState.Flee:
-                UpdateFleeState();
+            case FishState.ChargingWindup:
+                UpdateChargingWindupState();
                 break;
-                
+            case FishState.ChargingDash:
+                UpdateChargingDashState();
+                break;
+            case FishState.PostChargeWander:
+                UpdatePostChargeWanderState();
+                break;
             case FishState.Stunned:
                 UpdateStunnedState();
                 break;
         }
+         UpdateFacingDirection(); // Update facing based on velocity or target
     }
-    
-    private void ProcessAggroState()
+
+    private void ChangeState(FishState newState)
     {
-        // If the player exists and we're not already in chase mode or stunned
-        if (player != null && currentState != FishState.Chase && currentState != FishState.Stunned)
+        if (currentState == newState) return;
+
+        // Exit logic for old state (optional)
+        // OnStateExit(currentState);
+
+        Debug.Log($"[BadFishAI] {gameObject.name}: Changing state from {currentState} to {newState}", this);
+        currentState = newState;
+        stateTimer = 0f; // Reset generic timer on state change
+
+        // Enter logic for new state
+        OnStateEnter(newState);
+    }
+
+    private void OnStateEnter(FishState state)
+    {
+        switch (state)
         {
-            // Check distance to player
-            float distanceToPlayer = Vector2.Distance(transform.position, player.transform.position);
-            
-            // If player is within detection range, become aggro
-            if (distanceToPlayer <= playerDetectionRange)
-            {
-                BeginChasing();
-            }
+            case FishState.Patrol:
+                isWaitingAtPatrolPoint = false;
+                // SetNextPatrolTarget(); // Already handled when returning to patrol
+                break;
+            case FishState.Chase:
+                 if (isBoss && !canChargeAfterAggro && aggroToChargeDelayCoroutineRef == null)
+                 {
+                     // Start the delay before the first charge is allowed
+                     aggroToChargeDelayCoroutineRef = StartCoroutine(AggroToChargeDelayCoroutine());
+                 }
+                break;
+            case FishState.ChargingWindup:
+                chargeStateTimer = chargeWindupTime;
+                rb.velocity = Vector2.zero; // Stop for windup
+                // chargeDirection is now calculated at the END of windup
+                facingLocked = true; // Lock facing during windup
+                break;
+            case FishState.ChargingDash:
+                chargeStateTimer = chargeDuration;
+                // Velocity is set using the direction calculated just before entering this state
+                rb.velocity = chargeDirection * chargeSpeed;
+                facingLocked = true; // Lock facing during dash
+
+                // Play charge sound using PlayOneShotAttached <-- CHANGE Playback Logic
+                if (isBoss && !bossChargeSound.IsNull)
+                {
+                     Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Entering ChargingDash state. Playing charge sound via PlayOneShotAttached.", this); // <-- Updated log
+                     FMODUnity.RuntimeManager.PlayOneShotAttached(bossChargeSound, gameObject); // <-- Use PlayOneShotAttached
+                }
+                
+                // Maybe play dash animation/sound
+                break;
+            case FishState.PostChargeWander:
+                stateTimer = postChargeWanderDuration; // Use generic timer for wander duration
+                rb.velocity = chargeDirection * postChargeWanderSpeed;
+                facingLocked = true; // Lock facing during wander
+                break;
+            case FishState.Stunned:
+                rb.velocity = Vector2.zero;
+                facingLocked = false;
+                // stateTimer should be set by the StunFish() call
+                break;
+            default: // Reset lock on entering other states like Patrol, Chase
+                 facingLocked = false;
+                 break;
         }
-        
-        // Handle aggro timer
+    }
+
+    // Optional: Add OnStateExit if complex cleanup is needed per state
+
+    #endregion
+
+    #region State Logic
+
+    private void ProcessAggro()
+    {
+        if (player == null || currentState == FishState.Stunned) return;
+
+        float distanceToPlayer = Vector2.Distance(transform.position, player.transform.position);
+
         if (isAggro)
         {
             aggroTimer -= Time.deltaTime;
-            if (aggroTimer <= 0)
+            // If player is still within aggro range, reset timer
+            if (distanceToPlayer <= aggroRange)
             {
+                aggroTimer = maxAggroTime;
+            }
+            else if (aggroTimer <= 0)
+            {
+                // Aggro timer ran out and player is out of range
+                Debug.Log($"[BadFishAI] {gameObject.name}: Lost aggro (timer expired & out of range). Returning to Patrol.", this);
                 isAggro = false;
-                // Only stop chasing if we're not still close to the player
-                if (currentState == FishState.Chase && player != null)
-                {
-                    float distanceToPlayer = Vector2.Distance(transform.position, player.transform.position);
-                    if (distanceToPlayer > playerDetectionRange)
-                    {
-                        ReturnToPatrol();
-                    }
-                }
+                canChargeAfterAggro = false; // Reset charge permission
+                if (aggroToChargeDelayCoroutineRef != null) StopCoroutine(aggroToChargeDelayCoroutineRef); // Stop delay timer
+                 if (currentState == FishState.Chase || currentState == FishState.ChargingWindup || currentState == FishState.ChargingDash) // Only return if actively hostile
+                 {
+                     ChangeState(FishState.Patrol);
+                     SetNextPatrolTarget(); // Ensure we have a patrol target
+                 }
+            }
+        }
+        else // Not currently aggro
+        {
+            // Check if player entered detection range
+            if (distanceToPlayer <= playerDetectionRange)
+            {
+                Debug.Log($"[BadFishAI] {gameObject.name}: Player detected within range ({distanceToPlayer:F1}m). Becoming Aggro.", this);
+                BecomeAggro();
             }
         }
     }
-    
+
+    private void BecomeAggro()
+    {
+         isAggro = true;
+         aggroTimer = maxAggroTime;
+         if (currentState == FishState.Patrol) // Only switch if patrolling
+         {
+             ChangeState(FishState.Chase);
+         }
+         // Reset charge readiness for boss
+         if (isBoss)
+         {
+             canChargeAfterAggro = false;
+             if (aggroToChargeDelayCoroutineRef != null) StopCoroutine(aggroToChargeDelayCoroutineRef);
+             aggroToChargeDelayCoroutineRef = StartCoroutine(AggroToChargeDelayCoroutine());
+         }
+    }
+
+
+    private bool isWaitingAtPatrolPoint = false; // Added missing flag
+
     private void UpdatePatrolState()
     {
+        // Check for player detection first
+        if (isAggro)
+        {
+            ChangeState(FishState.Chase);
+            return;
+        }
+
         if (isWaitingAtPatrolPoint)
         {
-            stateTimer -= Time.deltaTime;
-            if (stateTimer <= 0)
+            stateTimer += Time.deltaTime;
+            rb.velocity = Vector2.Lerp(rb.velocity, Vector2.zero, Time.deltaTime * 5f); // Slow down
+            if (stateTimer >= patrolPointWaitTime)
             {
                 isWaitingAtPatrolPoint = false;
                 SetNextPatrolTarget();
             }
-            return;
+            return; // Don't move while waiting
         }
-        
-        // Move towards current patrol point
-        Debug.Log($"[BadFishAI] {gameObject.name} UpdatePatrolState - Moving towards {currentTarget}", this);
-        MoveTowards(currentTarget, patrolSpeed);
-        
-        // Check if we reached the patrol point
+
+        // Move towards target
         float distanceToTarget = Vector2.Distance(transform.position, currentTarget);
-        if (distanceToTarget <= minDistanceToWaypoint)
+        if (distanceToTarget > minDistanceToWaypoint)
         {
-            // Wait at patrol point
-            stateTimer = patrolPointWaitTime;
-            isWaitingAtPatrolPoint = true;
-        }
-    }
-    
-    private void UpdateChaseState()
-    {
-        if (player == null) 
-        {
-            ReturnToPatrol();
-            return;
-        }
-        
-        // Calculate distance to player
-        float distanceToPlayer = Vector2.Distance(transform.position, player.transform.position);
-        
-        // If we lost the player (too far away), return to patrol
-        if (distanceToPlayer > aggroRange && !isAggro)
-        {
-            ReturnToPatrol();
-            return;
-        }
-        
-        // Calculate direction to player
-        Vector2 direction = ((Vector2)player.transform.position - (Vector2)transform.position).normalized;
-        
-        // If we're too close to the player, don't get closer but still face them
-        if (distanceToPlayer <= minDistanceToPlayer)
-        {
-            // Just face the player but don't move closer
-            UpdateFacingDirection(direction.x);
-            rb.velocity = Vector2.zero;
+            MoveTowards(currentTarget, currentPatrolSpeed);
         }
         else
         {
-            // Make sure we're facing the right way before moving
-            bool shouldFaceRight = direction.x > 0;
+            // Reached waypoint
+            isWaitingAtPatrolPoint = true;
+            stateTimer = 0f; // Reset timer for waiting
+        }
+    }
+
+    private void UpdateChaseState()
+    {
+        if (!isAggro)
+        {
+            // Should have been caught by ProcessAggro, but double-check
+            ChangeState(FishState.Patrol);
+            return;
+        }
+
+        float distanceToPlayer = Vector2.Distance(transform.position, player.transform.position);
+
+        // --- Boss Charge Logic ---
+        if (isBoss && canChargeAfterAggro && !isChargeOnCooldown)
+        {
+             // Check if within a suitable range to initiate charge (not too close, not too far)
+             if (distanceToPlayer > minDistanceToPlayer * 1.5f && distanceToPlayer <= aggroRange * 0.8f)
+             {
+                 Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Conditions met. Initiating Charge Windup.", this);
+                 ChangeState(FishState.ChargingWindup);
+                 return; // Don't execute normal chase movement
+             }
+        }
+
+        // --- Normal Chase Movement ---
+        if (distanceToPlayer > minDistanceToPlayer)
+        {
+            MoveTowards(player.transform.position, currentChaseSpeed);
+        }
+        else
+        {
+            // Close enough, stop moving towards player
+            rb.velocity = Vector2.Lerp(rb.velocity, Vector2.zero, Time.deltaTime * 5f); // Slow down smoothly
+        }
+    }
+
+    private void UpdateChargingWindupState()
+    {
+        chargeStateTimer -= Time.deltaTime;
+        if (rb.velocity != Vector2.zero) rb.velocity = Vector2.zero;
+
+        // Continuously update direction towards player during windup
+        if (player != null)
+        {
+            chargeDirection = ((Vector2)player.transform.position - (Vector2)transform.position).normalized;
+            // Immediately face the *current* target direction
+            bool shouldFaceRight = chargeDirection.x > 0;
             if (shouldFaceRight != isFacingRight)
             {
                 FlipSprite(shouldFaceRight);
             }
-            
-            // Move towards player using our enhanced movement method
-            MoveTowards(player.transform.position, chaseSpeed);
+        }
+        else // If player disappears during windup
+        {
+            chargeDirection = transform.right * (isFacingRight ? 1 : -1); // Use current facing
+        }
+        
+
+        if (chargeStateTimer <= 0)
+        {   
+            // Final direction is locked just before dash starts
+            ChangeState(FishState.ChargingDash);
         }
     }
-    
-    private void UpdateFleeState()
+
+    private void UpdateChargingDashState()
     {
-        // Not implemented yet - could be used if the fish has low health
-        ReturnToPatrol();
+        chargeStateTimer -= Time.deltaTime;
+
+        // --- Collision Check During Dash ---
+        float checkDistance = rb.velocity.magnitude * Time.deltaTime + 0.5f; // Check slightly ahead
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, chargeDirection, checkDistance, obstacleLayer);
+
+        if (hit.collider != null)
+        {
+            Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Charge hit obstacle ({hit.collider.name})! Stopping dash.", this);
+            rb.velocity = Vector2.zero; // Stop immediately
+            StartChargeCooldown();      // Start cooldown
+            ChangeState(FishState.PostChargeWander); // Transition to wander (or Chase/Stunned)
+            return; // Exit early
+        }
+        // --- End Collision Check ---
+        
+        // Maintain charge velocity
+        if (rb.velocity.normalized != chargeDirection) 
+        {
+             rb.velocity = chargeDirection * chargeSpeed;
+        }
+       
+        if (chargeStateTimer <= 0)
+        {
+            Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Charge Dash finished normally.", this);
+            StartChargeCooldown(); 
+            ChangeState(FishState.PostChargeWander); 
+        }
     }
-    
+
+    private void UpdatePostChargeWanderState()
+    {
+        stateTimer -= Time.deltaTime;
+
+        // Maintain wander velocity (already set in OnStateEnter)
+        // Optional: Add slight curve or variation here if desired
+
+        if (stateTimer <= 0)
+        {
+            Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Post-charge wander finished. Returning to Chase.", this);
+            rb.velocity = Vector2.zero; // Stop wandering
+            ChangeState(FishState.Chase); // Now return to chase
+        }
+    }
+
     private void UpdateStunnedState()
     {
-        // Stay stunned for the timer duration
         stateTimer -= Time.deltaTime;
         if (stateTimer <= 0)
         {
-            // Return to previous state or patrol
-            currentState = isAggro ? FishState.Chase : FishState.Patrol;
+             // Recover from stun - return to chase if aggro, otherwise patrol
+             ChangeState(isAggro ? FishState.Chase : FishState.Patrol);
+             if (!isAggro) SetNextPatrolTarget();
         }
     }
-    
+
+    #endregion
+
+    #region Movement & Facing
+
     private void MoveTowards(Vector2 target, float speed)
     {
-        // Calculate direction to target
         Vector2 direction = (target - (Vector2)transform.position).normalized;
-
-        // Always face the direction we're moving
-        bool shouldFaceRight = direction.x > 0;
-        
-        // Update orientation before moving
-        if (shouldFaceRight != isFacingRight)
-        {
-            FlipSprite(shouldFaceRight);
-        }
-        
-        // Set velocity
-        rb.velocity = direction * speed;
-        Debug.Log($"[BadFishAI] {gameObject.name} MoveTowards called. Target: {target}, Speed: {speed}, Direction: {direction}, Velocity: {rb.velocity}", this);
+        rb.velocity = Vector2.Lerp(rb.velocity, direction * speed, Time.deltaTime * rotationSpeed); // Smoother velocity change
     }
-    
-    private void UpdateFacingDirection(float xDirection)
+
+    private void UpdateFacingDirection()
     {
-        // Only flip if the direction is significant (more than a small threshold)
-        if (Mathf.Abs(xDirection) > 0.1f)
+        // *** Exit if facing is locked ***
+        if (facingLocked) return;
+
+        float xVelocity = rb.velocity.x;
+
+        // Determine target direction based on velocity or target if velocity is near zero
+        float xDirectionTarget = 0f;
+        if (Mathf.Abs(xVelocity) > 0.1f)
         {
-            bool shouldFaceRight = xDirection > 0;
-            
-            // Only flip if we actually need to change direction
+             xDirectionTarget = xVelocity;
+        }
+        else if (currentState == FishState.Patrol && !isWaitingAtPatrolPoint)
+        {
+             xDirectionTarget = currentTarget.x - transform.position.x;
+        }
+        else if (currentState == FishState.Chase && player != null)
+        {
+             xDirectionTarget = player.transform.position.x - transform.position.x;
+        }
+        else if (currentState == FishState.ChargingWindup || currentState == FishState.ChargingDash)
+        {
+            xDirectionTarget = chargeDirection.x;
+        }
+
+
+        // Only flip if the target direction is significant
+        if (Mathf.Abs(xDirectionTarget) > 0.1f)
+        {
+            bool shouldFaceRight = xDirectionTarget > 0;
             if (shouldFaceRight != isFacingRight)
             {
                 FlipSprite(shouldFaceRight);
             }
         }
     }
-    
-    private void FlipSprite(bool shouldFaceRight)
+
+    private void FlipSprite(bool faceRight)
     {
-        // Store current facing direction
-        isFacingRight = shouldFaceRight;
-        
-        if (debugOrientation)
-        {
-            Debug.Log($"Fish should face: {(shouldFaceRight ? "RIGHT" : "LEFT")}, Artwork naturally faces: {(artworkFacesRight ? "RIGHT" : "LEFT")}", this);
-        }
-        
+        isFacingRight = faceRight;
         if (spriteRenderer != null)
         {
-            // Determine if we need to flip the sprite
-            // Only flip if the desired direction doesn't match artwork's natural direction
-            bool needToFlip = (shouldFaceRight != artworkFacesRight);
-            
-            // Apply flip state
-            spriteRenderer.flipX = needToFlip;
-            
-            if (debugOrientation)
-            {
-                Debug.Log($"Setting spriteRenderer.flipX = {needToFlip}", this);
-            }
+            // Flip based on whether desired facing matches artwork's natural facing
+            spriteRenderer.flipX = (faceRight != artworkFacesRight);
         }
         else
         {
-            // No sprite renderer, use transform scale instead
+            // Fallback: Scale flipping if no sprite renderer (less common for 2D)
             Vector3 scale = transform.localScale;
-            float xScale = Mathf.Abs(scale.x);
-            
-            // If we want to face right but artwork faces left naturally (or vice versa)
-            if (shouldFaceRight != artworkFacesRight)
-            {
-                scale.x = -xScale; // Flip
-            }
-            else
-            {
-                scale.x = xScale; // No flip
-            }
-            
+            scale.x = Mathf.Abs(scale.x) * (faceRight ? 1 : -1) * (artworkFacesRight ? 1 : -1);
             transform.localScale = scale;
-            
-            if (debugOrientation)
-            {
-                Debug.Log($"Setting transform.localScale.x = {scale.x}", this);
-            }
         }
     }
-    
-    private void GenerateRandomPatrolPoints()
+
+    #endregion
+
+    #region Cooldowns (Boss Only)
+
+    // Coroutine for delay between getting aggro and being allowed to charge
+    private IEnumerator AggroToChargeDelayCoroutine()
     {
-        randomPatrolPoints.Clear();
-
-        // Always include the start position
-        randomPatrolPoints.Add(startPosition);
-
-        for (int i = 0; i < maxRandomPatrolPoints - 1; i++)
-        {
-            // Generate a random direction and distance within the patrol radius
-            float angle = Random.Range(0f, Mathf.PI * 2f);
-            float distance = Random.Range(patrolRadius * 0.5f, patrolRadius); // Avoid points too close to center
-            Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
-            randomPatrolPoints.Add(startPosition + offset);
-        }
-
-        // Log the patrol points for debugging
-        if (showDebugGizmos)
-        {
-            string pointList = "";
-            foreach (Vector2 point in randomPatrolPoints)
-            {
-                pointList += point.ToString() + ", ";
-            }
-            Debug.Log($"BadFishAI: Generated random patrol points: {pointList}");
-        }
+        Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Starting Aggro-to-Charge delay ({aggroToChargeDelay}s).", this);
+        canChargeAfterAggro = false;
+        yield return new WaitForSeconds(aggroToChargeDelay);
+        canChargeAfterAggro = true;
+        aggroToChargeDelayCoroutineRef = null; // Mark as finished
+        Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Aggro-to-Charge delay finished. Can now charge.", this);
     }
-    
-    private void SetNextPatrolTarget()
+
+    private void StartChargeCooldown()
     {
-        if (useRandomPatrolPoints && randomPatrolPoints.Count > 0)
+        if (!isBoss) return;
+
+        if (chargeCooldownCoroutineRef != null)
         {
-            currentPatrolIndex = (currentPatrolIndex + 1) % randomPatrolPoints.Count;
-            currentTarget = randomPatrolPoints[currentPatrolIndex];
+            StopCoroutine(chargeCooldownCoroutineRef);
         }
-        else if (patrolPoints != null && patrolPoints.Length > 0)
-        {
-            currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
-            currentTarget = patrolPoints[currentPatrolIndex];
-        }
-        else
-        {
-            // Fallback if no patrol points are defined
-            currentTarget = startPosition;
-        }
+        chargeCooldownCoroutineRef = StartCoroutine(ChargeCooldownCoroutine());
     }
-    
-    // Public method for other scripts to call when the fish is attacked
+
+    // Coroutine for delay between charges
+    private IEnumerator ChargeCooldownCoroutine()
+    {
+        isChargeOnCooldown = true;
+        Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Starting Charge Cooldown ({chargeCooldown}s).", this);
+        yield return new WaitForSeconds(chargeCooldown);
+        isChargeOnCooldown = false;
+        chargeCooldownCoroutineRef = null; // Mark as finished
+        Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Charge Cooldown finished. Ready to charge again.", this);
+    }
+
+    #endregion
+
+    #region Public Methods & Event Handlers
+
+    // Call this from other scripts (e.g., projectile collision)
     public void OnAttacked()
     {
-        BeginChasing();
-    }
-    
-    // Called when something hits the fish (player or projectile)
-    private void BeginChasing()
-    {
-        // Become aggro and chase the player
-        isAggro = true;
-        aggroTimer = MAX_AGGRO_TIME;
-        
-        if (currentState != FishState.Stunned)
+        if (!isAggro)
         {
-            currentState = FishState.Chase;
+             Debug.Log($"[BadFishAI] {gameObject.name}: Attacked! Becoming Aggro.", this);
+             BecomeAggro();
+        }
+        else
+        {
+             // Already aggro, refresh timer
+             aggroTimer = maxAggroTime;
         }
     }
-    
-    private void ReturnToPatrol()
-    {
-        currentState = FishState.Patrol;
-        SetNextPatrolTarget();
-    }
-    
-    // Call this when the fish takes a hit that should stun it briefly
+
+    // Call this if the fish should be stunned (e.g., by specific attack)
     public void StunFish(float duration)
     {
-        currentState = FishState.Stunned;
-        stateTimer = duration;
-        rb.velocity = Vector2.zero; // Stop movement during stun
+        Debug.Log($"[BadFishAI] {gameObject.name}: Stunned for {duration} seconds.", this);
+        stateTimer = duration; // Set stun duration
+        ChangeState(FishState.Stunned);
     }
-    
-    // Called by other scripts when fish health changes
-    public void OnHealthChanged(int currentHealth, int maxHealth)
+
+    // Optional: Call when health changes (e.g., to trigger fleeing at low health)
+    public void OnHealthChanged(float currentHealth, float maxHealth)
     {
-        // Could implement fleeing behavior at low health here
-        float healthPercentage = (float)currentHealth / maxHealth;
-        
-        if (healthPercentage < 0.3f)
+        // Example: Flee at low health
+        // if (currentHealth / maxHealth < 0.2f && currentState != FishState.Flee)
+        // {
+        //     ChangeState(FishState.Flee);
+        // }
+    }
+
+     // Reset state, typically called on player respawn
+     public void ResetToInitialState()
+     {
+         Debug.Log($"[BadFishAI] {gameObject.name}: Resetting to initial state.", this);
+         StopAllCoroutines(); // Stop cooldowns etc.
+
+         isAggro = false;
+         aggroTimer = 0f;
+         isChargeOnCooldown = true; // Reset cooldown state
+         canChargeAfterAggro = false;
+         chargeCooldownCoroutineRef = null;
+         aggroToChargeDelayCoroutineRef = null;
+
+         ChangeState(FishState.Patrol);
+         SetNextPatrolTarget();
+
+         // Reset velocity
+         if (rb != null) rb.velocity = Vector2.zero;
+
+         // Re-start initial cooldown if boss
+         if (isBoss)
+         {
+             StartCoroutine(InitialChargeCooldown());
+         }
+     }
+
+    #endregion
+
+    #region Collision & Triggers
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        // Example: If player collides directly, become aggro
+        if (collision.gameObject.CompareTag("Player"))
         {
-            // Optionally switch to flee behavior when below 30% health
-            // currentState = FishState.Flee;
+             Debug.Log($"[BadFishAI] {gameObject.name}: Collided directly with Player.", this);
+             OnAttacked();
+             // Apply collision damage here or in player script
+        }
+
+         // If charging and hit player, potentially apply charge damage
+         if (IsCurrentlyCharging && collision.gameObject.CompareTag("Player"))
+         {
+             Debug.Log($"[BadFishAI-BOSS] {gameObject.name}: Hit Player during charge!", this);
+             // Damage application logic should check IsCurrentlyCharging and ChargeDamageMultiplier
+         }
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        // Example: If hit by player projectile, become aggro
+        if (other.CompareTag("PlayerProjectile"))
+        {
+             Debug.Log($"[BadFishAI] {gameObject.name}: Hit by PlayerProjectile.", this);
+             OnAttacked();
         }
     }
-    
-    // Called when player comes into collision with the fish
-    public void OnPlayerCollision()
-    {
-        BeginChasing();
-    }
-    
-    // Show debug visualization
+
+    #endregion
+
+    #region Debug Gizmos
+
     private void OnDrawGizmosSelected()
     {
         if (!showDebugGizmos) return;
-        
-        // Show detection range
+
+        Vector3 pos = transform.position;
+
+        // Detection Range
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, playerDetectionRange);
-        
-        // Show aggro range
+        Gizmos.DrawWireSphere(pos, playerDetectionRange);
+
+        // Aggro Range
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, aggroRange);
-        
-        // Show patrol radius
-        Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(Application.isPlaying ? startPosition : transform.position, patrolRadius);
-        
-        // Show patrol points
-        Gizmos.color = Color.green;
-        
-        if (Application.isPlaying)
-        {
-            // Show actual patrol points being used
-            if (useRandomPatrolPoints && randomPatrolPoints.Count > 0)
-            {
-                foreach (Vector2 point in randomPatrolPoints)
-                {
-                    Gizmos.DrawSphere(point, 0.2f);
-                }
-                
-                // Show current target
-                Gizmos.color = Color.blue;
-                Gizmos.DrawSphere(currentTarget, 0.3f);
-            }
-            else if (patrolPoints != null && patrolPoints.Length > 0)
-            {
-                foreach (Vector2 point in patrolPoints)
-                {
-                    Gizmos.DrawSphere(point, 0.2f);
-                }
-                
-                // Show current target
-                Gizmos.color = Color.blue;
-                Gizmos.DrawSphere(currentTarget, 0.3f);
-            }
-        }
-        else
-        {
-            // Show configured patrol points in editor
-            if (patrolPoints != null && patrolPoints.Length > 0)
-            {
-                foreach (Vector2 point in patrolPoints)
-                {
-                    Gizmos.DrawSphere(point, 0.2f);
-                }
-            }
-        }
-    }
-    
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        // Check if the object has a tag before comparing
-        if (other.tag != null && other.tag != "Untagged")
-        {
-            // Safe way to check for player projectile
-            if (other.CompareTag("PlayerProjectile"))
-            {
-                // Become aggro if hit by a player projectile
-                BeginChasing();
-            }
-        }
-    }
-    
-    // Add this after the Start method to fix orientation issues
-    private void CheckAndFixOrientation()
-    {
-        // Determine current world position
-        Vector3 currentPos = transform.position;
-        
-        // Find target to check orientation
-        Vector3 targetPos;
-        
-        // Use patrol point or player position to check orientation
-        if (player != null && currentState == FishState.Chase)
-        {
-            targetPos = player.transform.position;
-        }
-        else if (randomPatrolPoints.Count > 0 && currentPatrolIndex < randomPatrolPoints.Count)
-        {
-            targetPos = randomPatrolPoints[currentPatrolIndex];
-        }
-        else if (patrolPoints != null && patrolPoints.Length > 0 && currentPatrolIndex < patrolPoints.Length)
-        {
-            targetPos = patrolPoints[currentPatrolIndex];
-        }
-        else
-        {
-            // Default: just use a point to the right
-            targetPos = transform.position + Vector3.right;
-        }
-        
-        // Calculate movement direction
-        Vector2 moveDirection = (targetPos - currentPos).normalized;
-        
-        // If significant horizontal movement
-        if (Mathf.Abs(moveDirection.x) > 0.1f)
-        {
-            // Should the fish face right?
-            bool shouldFaceRight = moveDirection.x > 0;
-            
-            // Force the sprite to face the correct direction
-            if (shouldFaceRight != isFacingRight)
-            {
-                FlipSprite(shouldFaceRight);
-            }
-        }
-    }
-    
-    // Add a debug method to help users fix orientation issues
-    [ContextMenu("Toggle Orientation Debug Mode")]
-    public void ToggleOrientationDebug()
-    {
-        debugOrientation = !debugOrientation;
-        Debug.Log($"Fish orientation debug mode: {(debugOrientation ? "ENABLED" : "DISABLED")}", this);
-        
-        if (debugOrientation)
-        {
-            Debug.Log($"ORIENTATION INFO - Artwork faces: {(artworkFacesRight ? "RIGHT" : "LEFT")}, " +
-                      $"Currently facing: {(isFacingRight ? "RIGHT" : "LEFT")}", this);
-        }
-    }
-    
-    // Called when the player dies - triggers feeding frenzy behavior
-    public void OnPlayerDeath(Vector3 playerDeathPosition)
-    {
-        // Reset any existing coroutines or states
-        StopAllCoroutines();
+        Gizmos.DrawWireSphere(pos, aggroRange);
 
-        // Reset sprite color to normal (prevents flicker)
-        if (spriteRenderer != null)
-        {
-            spriteRenderer.color = isBoss ? bossColor : Color.white;
-        }
-        // Also reset any flash/invulnerability effects in badFishHealth
-        if (healthComponent != null)
-        {
-            healthComponent.ResetVisuals();
-        }
-
-        // Set fish to flee away from the player's death position
-        StartCoroutine(FleeFromPlayerDeath(playerDeathPosition, 3f)); // Flee for 3 seconds
-    }
-
-    // Coroutine to handle fleeing behavior after player death
-    private IEnumerator FleeFromPlayerDeath(Vector3 playerDeathPosition, float fleeDuration)
-    {
-        currentState = FishState.Flee;
-        float startTime = Time.time;
-        Vector2 fleeDirection = ((Vector2)transform.position - (Vector2)playerDeathPosition).normalized;
-        if (fleeDirection == Vector2.zero) fleeDirection = Vector2.right; // Default if overlapping
-        float fleeSpeed = chaseSpeed * 1.2f; // Slightly faster than chase
-
-        while (Time.time - startTime < fleeDuration)
-        {
-            rb.velocity = fleeDirection * fleeSpeed;
-            UpdateFacingDirection(fleeDirection.x);
-            yield return null;
-        }
-
-        // After fleeing, return to patrol
-        ReturnToPatrol();
-    }
-    
-    /// <summary>
-    /// Resets the fish to its initial state when player respawns
-    /// </summary>
-    public void ResetToInitialState()
-    {
-        // Stop any running coroutines
-        StopAllCoroutines();
-        
-        // Reset the fish's state
-        currentState = FishState.Patrol;
-        isAggro = false;
-        aggroTimer = 0f;
-        
-        // Reset the fish's speed
-        chaseSpeed = patrolSpeed * 2f; // Reset to default (assuming patrol speed is half of chase)
-        
-        // Reset orientation
-        CheckAndFixOrientation();
-        
-        // Reset physics
-        if (rb != null)
-        {
-            rb.velocity = Vector2.zero;
-        }
-        
-        // Regenerate patrol points (optional - only if you want to change patrol paths)
+        // Patrol Radius (only if using random)
         if (useRandomPatrolPoints)
         {
-            GenerateRandomPatrolPoints();
+            Gizmos.color = Color.cyan;
+            Gizmos.DrawWireSphere(Application.isPlaying ? startPosition : pos, patrolRadius);
         }
-        
-        // Set next patrol target
-        SetNextPatrolTarget();
-        
-        Debug.Log($"{gameObject.name} reset to initial state", this);
-    }
-    
-    /// <summary>
-    /// Applies boss attributes if this fish is marked as a boss
-    /// </summary>
-    private void SetupBossAttributes()
-    {
-        // Apply visual changes
-        if (spriteRenderer != null)
+
+        // Patrol Points
+        Gizmos.color = Color.green;
+        if (Application.isPlaying)
         {
-            spriteRenderer.color = bossColor;
-            
-            // Make boss fish slightly larger
-            Transform spriteTransform = spriteRenderer.transform;
-            spriteTransform.localScale = new Vector3(
-                spriteTransform.localScale.x * 1.3f,
-                spriteTransform.localScale.y * 1.3f,
-                spriteTransform.localScale.z
-            );
+             if (generatedPatrolPoints.Count > 0)
+             {
+                 foreach (Vector2 point in generatedPatrolPoints) Gizmos.DrawSphere(point, 0.2f);
+                 Gizmos.color = Color.blue; // Current target
+                 Gizmos.DrawSphere(currentTarget, 0.3f);
+             }
         }
-        
-        // Apply stat boosts - store original values first
-        float originalPatrolSpeed = patrolSpeed;
-        float originalChaseSpeed = chaseSpeed;
-        float originalDetectionRange = playerDetectionRange;
-        float originalAggroRange = aggroRange;
-        
-        // Apply speed multipliers
-        patrolSpeed *= bossSpeedMultiplier;
-        chaseSpeed *= bossSpeedMultiplier;
-        playerDetectionRange *= bossAggroRangeMultiplier;
-        aggroRange *= bossAggroRangeMultiplier;
-        
-        // Ensure we have a significant boost in speed
-        if (patrolSpeed < originalPatrolSpeed * 1.2f)
+        else // Draw explicit points in editor
         {
-            patrolSpeed = originalPatrolSpeed * 1.5f;
-        }
-        
-        if (chaseSpeed < originalChaseSpeed * 1.2f)
-        {
-            chaseSpeed = originalChaseSpeed * 1.5f;
-        }
-        
-        // Log the changes for verification
-        if (showBossDebugLogs)
-        {
-            Debug.Log($"BOSS FISH: {gameObject.name} - Speed increased from {originalPatrolSpeed}/{originalChaseSpeed} to {patrolSpeed}/{chaseSpeed}");
-            Debug.Log($"BOSS FISH: {gameObject.name} - Detection/Aggro range increased from {originalDetectionRange}/{originalAggroRange} to {playerDetectionRange}/{aggroRange}");
-        }
-        
-        // Check for and disable any components that might be destroying this fish
-        MonoBehaviour[] allComponents = GetComponents<MonoBehaviour>();
-        foreach (MonoBehaviour component in allComponents)
-        {
-            // Skip this component itself
-            if (component == this) continue;
-            
-            string componentName = component.GetType().Name.ToLower();
-            if (componentName.Contains("destroy") || 
-                componentName.Contains("despawn") || 
-                componentName.Contains("pool") || 
-                componentName.Contains("offscreen") || 
-                componentName.Contains("lifecycle") ||
-                componentName.Contains("respawn") ||
-                componentName.Contains("cull"))
-            {
-                // This might be a component that destroys the fish
-                component.enabled = false;
-                Debug.Log($"Boss fish: Disabled '{component.GetType().Name}' to prevent despawning", this);
-            }
-        }
-        
-        // If there's a Collider2D, make sure it stays active for interaction
-        Collider2D collider = GetComponent<Collider2D>();
-        if (collider != null)
-        {
-            collider.enabled = true;
-        }
-        
-        // Notify health component if it exists
-        if (healthComponent != null)
-        {
-            healthComponent.SendMessage("SetBossStatus", true, SendMessageOptions.DontRequireReceiver);
-        }
-        
-        // Log that this is a boss fish
-        Debug.Log($"{gameObject.name} initialized as a BOSS fish with enhanced attributes!", this);
-    }
-    
-    // Add a context menu option to help with debugging
-    [ContextMenu("Debug Boss Status")]
-    public void DebugBossStatus()
-    {
-        Debug.Log($"BOSS STATUS FOR: {gameObject.name}", this);
-        Debug.Log($"- Is Boss: {isBoss}", this);
-        Debug.Log($"- Current Position: {transform.position}", this);
-        Debug.Log($"- Start Position: {startPosition}", this);
-        Debug.Log($"- Current State: {currentState}", this);
-        Debug.Log($"- Is Aggro: {isAggro}, Time Left: {aggroTimer:F1}s", this);
-        Debug.Log($"- Is Facing Right: {isFacingRight}", this);
-        
-        // Check for viewport position
-        if (Camera.main != null)
-        {
-            Vector3 viewportPos = Camera.main.WorldToViewportPoint(transform.position);
-            bool isVisible = (viewportPos.x > 0 && viewportPos.x < 1 && viewportPos.y > 0 && viewportPos.y < 1);
-            Debug.Log($"- Viewport Position: {viewportPos}, Is Visible: {isVisible}", this);
-        }
-        
-        // Check components
-        Debug.Log($"- Has SpriteRenderer: {spriteRenderer != null}", this);
-        Debug.Log($"- Has Rigidbody2D: {rb != null}", this);
-        Debug.Log($"- Has Health Component: {healthComponent != null}", this);
-    }
-    
-    // Called when this gameObject is destroyed - helps us debug why boss fish are being destroyed
-    private void OnDestroy()
-    {
-        // Only log for boss fish
-        if (isBoss)
-        {
-            Debug.LogWarning($"BOSS FISH DESTROYED: {gameObject.name} at position {transform.position}", this);
-            
-            // Print a stack trace to help identify what's destroying the boss
-            string stackTrace = System.Environment.StackTrace;
-            Debug.LogWarning($"Destruction stack trace: {stackTrace}");
-        }
-    }
-    
-    // Public method to set boss status from other scripts
-    public void SetBossStatus(bool status)
-    {
-        if (status != isBoss)
-        {
-            isBoss = status;
-            
-            // Apply boss attributes if becoming a boss
-            if (isBoss)
-            {
-                SetupBossAttributes();
-            }
-            else
-            {
-                // Reset to default values if no longer a boss
-                // This would need to store original values - not implemented here
-            }
-            
-            // Sync with health component
-            if (healthComponent != null)
-            {
-                healthComponent.SetBossStatus(isBoss);
-            }
+             if (!useRandomPatrolPoints && explicitPatrolPoints != null)
+             {
+                 foreach (Vector2 point in explicitPatrolPoints) Gizmos.DrawSphere(point, 0.2f);
+             }
         }
     }
 
-    private void FixedUpdate()
-    {
-        // Ensure body type remains Dynamic (in case some other script changes it)
-        if (rb != null && rb.bodyType != RigidbodyType2D.Dynamic)
-        {
-            rb.bodyType = RigidbodyType2D.Dynamic;
-            Debug.LogWarning($"BadFishAI: Something changed the Rigidbody2D type to {rb.bodyType}. Restoring to Dynamic.", this);
-        }
-        
-        // Handle collision avoidance
-        if (rb != null && rb.velocity.sqrMagnitude > 0)
-        {
-            AvoidCollisions();
-        }
-    }
-
-    /// <summary>
-    /// Checks for and avoids collisions with obstacles
-    /// </summary>
-    private void AvoidCollisions()
-    {
-        // Get current movement direction
-        Vector2 moveDirection = rb.velocity.normalized;
-        
-        // Cast multiple rays in a fan pattern to detect obstacles
-        float angleStep = 45f; // Degrees between each ray
-        int rayCount = 5; // Number of rays to cast (including center)
-        Vector2 avoidanceForce = Vector2.zero;
-        
-        for (int i = 0; i < rayCount; i++)
-        {
-            // Calculate ray direction
-            float angle = (i - (rayCount - 1) / 2) * angleStep;
-            Vector2 rayDirection = Quaternion.Euler(0, 0, angle) * moveDirection;
-            
-            // Cast ray
-            RaycastHit2D hit = Physics2D.Raycast(
-                transform.position,
-                rayDirection,
-                collisionAvoidanceRadius,
-                collisionLayers
-            );
-            
-            // Debug visualization
-            if (showDebugGizmos)
-            {
-                Debug.DrawRay(
-                    transform.position,
-                    rayDirection * collisionAvoidanceRadius,
-                    hit.collider != null ? Color.red : Color.green
-                );
-            }
-            
-            // If we hit something, calculate avoidance force
-            if (hit.collider != null)
-            {
-                // Calculate force away from the collision
-                Vector2 avoidDirection = -hit.normal;
-                float distanceFactor = 1f - (hit.distance / collisionAvoidanceRadius);
-                avoidanceForce += avoidDirection * collisionAvoidanceForce * distanceFactor;
-            }
-        }
-        
-        // Apply avoidance force if needed
-        if (avoidanceForce != Vector2.zero)
-        {
-            // Normalize and apply the force
-            avoidanceForce.Normalize();
-            rb.AddForce(avoidanceForce * collisionAvoidanceForce, ForceMode2D.Force);
-            
-            // Update facing direction based on new movement
-            UpdateFacingDirection(rb.velocity.x);
-        }
-    }
-
-    private void OnDrawGizmos()
-    {
-        if (showDebugGizmos)
-        {
-            // Draw collision avoidance radius
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(transform.position, collisionAvoidanceRadius);
-            
-            // Draw current velocity direction
-            if (rb != null && rb.velocity.sqrMagnitude > 0)
-            {
-                Gizmos.color = Color.blue;
-                Gizmos.DrawRay(transform.position, rb.velocity.normalized * collisionAvoidanceRadius);
-            }
-        }
-    }
-    
-    // Log all physical collisions with the fish
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        // Log detailed collision information
-        string layerName = LayerMask.LayerToName(collision.gameObject.layer);
-        Debug.Log($"BadFishAI: PHYSICAL COLLISION with {collision.gameObject.name} on layer {layerName}", this);
-        
-        // Additional details about the collision
-        if (collision.contactCount > 0)
-        {
-            ContactPoint2D contact = collision.GetContact(0);
-            Debug.Log($"  - Contact point: {contact.point}, Normal: {contact.normal}", this);
-            Debug.Log($"  - Relative velocity: {collision.relativeVelocity}, Rigidbody type: {(rb != null ? rb.bodyType.ToString() : "No Rigidbody")}", this);
-        }
-    }
-
-    private void ValidateColliders()
-    {
-        // Get all colliders on this GameObject and its children
-        Collider2D[] allColliders = GetComponentsInChildren<Collider2D>();
-        
-        // Check if we have any colliders at all
-        if (allColliders.Length == 0)
-        {
-            Debug.LogError($"BadFishAI on {gameObject.name}: NO COLLIDERS FOUND! Fish will pass through obstacles.", this);
-            return;
-        }
-        
-        // Check if we have at least one non-trigger collider for physics collisions
-        bool hasNonTriggerCollider = false;
-        foreach (Collider2D collider in allColliders)
-        {
-            if (!collider.isTrigger)
-            {
-                hasNonTriggerCollider = true;
-                Debug.Log($"BadFishAI: Found non-trigger collider {collider.GetType().Name} on {collider.gameObject.name} for physics collisions", this);
-            }
-            else
-            {
-                Debug.Log($"BadFishAI: Found trigger collider {collider.GetType().Name} on {collider.gameObject.name} (trigger colliders don't block movement)", this);
-            }
-        }
-        
-        if (!hasNonTriggerCollider)
-        {
-            Debug.LogError($"BadFishAI on {gameObject.name}: All colliders are TRIGGERS! Fish will pass through obstacles. Add at least one non-trigger collider.", this);
-        }
-        
-        // Check rigidbody settings
-        if (rb != null)
-        {
-            Debug.Log($"BadFishAI: Rigidbody2D settings - Type: {rb.bodyType}, CollisionDetection: {rb.collisionDetectionMode}, " +
-                      $"Interpolation: {rb.interpolation}, Gravity: {rb.gravityScale}", this);
-            
-            // Check if using 'Discrete' collision detection
-            if (rb.collisionDetectionMode == CollisionDetectionMode2D.Discrete)
-            {
-                Debug.LogWarning($"BadFishAI on {gameObject.name}: Using DISCRETE collision detection. Fast-moving fish may pass through thin colliders.", this);
-            }
-            
-            // Check if body type isn't Dynamic
-            if (rb.bodyType != RigidbodyType2D.Dynamic)
-            {
-                Debug.LogWarning($"BadFishAI on {gameObject.name}: Body type is {rb.bodyType} instead of Dynamic. Fish may not collide properly with static obstacles.", this);
-            }
-        }
-        
-        // Check layer collisions in Physics2D settings
-        int thisLayer = gameObject.layer;
-        string thisLayerName = LayerMask.LayerToName(thisLayer);
-        Debug.Log($"BadFishAI: This fish is on layer '{thisLayerName}' (#{thisLayer}).", this);
-        
-        // Check Physics2D layer collision matrix
-        Debug.Log("BadFishAI: Checking Physics2D layer collision matrix:", this);
-        
-        // Try to find floor/ground and fishblocker layers
-        for (int otherLayer = 0; otherLayer < 32; otherLayer++)
-        {
-            string otherLayerName = LayerMask.LayerToName(otherLayer);
-            if (string.IsNullOrEmpty(otherLayerName)) continue;
-            
-            // Check if this is a layer we care about
-            bool isFloorLayer = otherLayerName.ToLower().Contains("floor") || 
-                                otherLayerName.ToLower().Contains("ground");
-            bool isFishBlockerLayer = otherLayerName.ToLower().Contains("fishblocker") || 
-                                      (otherLayerName.ToLower().Contains("fish") && otherLayerName.ToLower().Contains("block"));
-            
-            if (isFloorLayer || isFishBlockerLayer)
-            {
-                bool canCollide = AreLayersColliding(thisLayer, otherLayer);
-                Debug.Log($"  - This layer ({thisLayerName}) {(canCollide ? "CAN" : "CANNOT")} collide with {otherLayerName}", this);
-                
-                if (!canCollide)
-                {
-                    Debug.LogError($"PHYSICS2D LAYER ISSUE: {thisLayerName} and {otherLayerName} are NOT set to collide in Physics2D settings!", this);
-                    Debug.LogError("Open Edit > Project Settings > Physics 2D and check the Layer Collision Matrix", this);
-                }
-            }
-        }
-        
-        // Check collisionLayers property for avoidance
-        if (collisionLayers.value == 0)
-        {
-            Debug.LogError($"BadFishAI on {gameObject.name}: collisionLayers is set to NOTHING (0). Fish won't detect obstacles to avoid!", this);
-        }
-        else
-        {
-            // Log which layers are included in collision avoidance
-            Debug.Log($"BadFishAI: Collision avoidance is set up for these layers:", this);
-            for (int i = 0; i < 32; i++)
-            {
-                if (((1 << i) & collisionLayers.value) != 0)
-                {
-                    string layerName = LayerMask.LayerToName(i);
-                    Debug.Log($"  - Layer {i}: {(string.IsNullOrEmpty(layerName) ? "Unnamed" : layerName)}", this);
-                }
-            }
-            
-            // Try to determine common layer names for floors and walls
-            bool containsFloor = false;
-            bool containsWall = false;
-            bool containsFishBlocker = false;
-            
-            for (int i = 0; i < 32; i++)
-            {
-                if (((1 << i) & collisionLayers.value) != 0)
-                {
-                    string layerName = LayerMask.LayerToName(i).ToLower();
-                    if (layerName.Contains("floor") || layerName.Contains("ground") || layerName.Contains("terrain"))
-                    {
-                        containsFloor = true;
-                    }
-                    if (layerName.Contains("wall") || layerName.Contains("obstacle") || layerName.Contains("block"))
-                    {
-                        containsWall = true;
-                    }
-                    if (layerName.Contains("fish") && (layerName.Contains("block") || layerName.Contains("barrier")))
-                    {
-                        containsFishBlocker = true;
-                    }
-                }
-            }
-            
-            if (!containsFloor)
-            {
-                Debug.LogWarning($"BadFishAI: No 'Floor' or 'Ground' layers detected in collisionLayers. Fish may not avoid floors!", this);
-            }
-            if (!containsWall)
-            {
-                Debug.LogWarning($"BadFishAI: No 'Wall' or 'Obstacle' layers detected in collisionLayers. Fish may not avoid walls!", this);
-            }
-            if (!containsFishBlocker)
-            {
-                Debug.LogWarning($"BadFishAI: No 'FishBlocker' layer detected in collisionLayers. Fish may not avoid fish blockers!", this);
-            }
-        }
-    }
-    
-    // Helper method to check if two layers are set to collide in Physics2D settings
-    private bool AreLayersColliding(int layer1, int layer2)
-    {
-        // Get the value directly from Physics2D
-        return Physics2D.GetIgnoreLayerCollision(layer1, layer2) == false;
-    }
-
-    void OnEnable()
-    {
-        // Check rigidbody state when fish is enabled/activated
-        if (rb != null)
-        {
-            // Log current state
-            Debug.Log($"BadFishAI OnEnable - Rigidbody2D state: Type={rb.bodyType}, GameObject={gameObject.name}", this);
-            
-            // Force to Dynamic if needed
-            if (rb.bodyType != RigidbodyType2D.Dynamic)
-            {
-                Debug.LogWarning($"BadFishAI OnEnable - Found Rigidbody2D as {rb.bodyType}, forcing to Dynamic", this);
-                rb.bodyType = RigidbodyType2D.Dynamic;
-            }
-        }
-    }
-} 
+    #endregion
+}
