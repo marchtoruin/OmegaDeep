@@ -6,6 +6,7 @@ public class CameraCenter : MonoBehaviour
     // --- Enums for Actions ---
     public enum FollowAction { DoNothing, CenterOnPlayer, ResumeFollowing }
     public enum ZoomAction { DoNothing, SetTargetZoom, ResumePreviousZoom } // Added Resume
+    public enum BoostControlAction { DoNothing, DisableBoost, EnableBoost } // Added Boost Control
 
     [Header("Follow Settings")]
     [Tooltip("What should happen to camera following?")]
@@ -16,6 +17,10 @@ public class CameraCenter : MonoBehaviour
     public ZoomAction zoomAction = ZoomAction.DoNothing; // Default to DoNothing
     [Tooltip("The target Orthographic Size (only used if Zoom Action is SetTargetZoom).")]
     public float targetOrthographicSize = 5f;
+
+    [Header("Boost Control Settings")] // New Header
+    [Tooltip("What should happen to the player's ability to boost?")]
+    public BoostControlAction boostControlAction = BoostControlAction.DoNothing; // New Variable
 
     [Header("Trigger Settings")]
     [Tooltip("Should this trigger only activate once?")]
@@ -51,10 +56,10 @@ public class CameraCenter : MonoBehaviour
         if (mainCameraFollow != null && other.CompareTag("Player"))
         {
             // Check if it should trigger only once and if it already has
-            if (triggerOnce && hasTriggered)
-            {
-                return; // Already triggered, do nothing more
-            }
+            if (triggerOnce && hasTriggered) return; 
+
+            // --- Get Player State Machine --- 
+            PlayerStateMachine playerStateMachine = other.GetComponent<PlayerStateMachine>();
 
             bool triggeredSomething = false;
 
@@ -80,6 +85,26 @@ public class CameraCenter : MonoBehaviour
                     triggeredSomething = true;
                     break;
                 // Do nothing for DoNothing case
+            }
+
+            // Handle Boost Control Action
+            if (playerStateMachine != null && boostControlAction != BoostControlAction.DoNothing)
+            {
+                if (boostControlAction == BoostControlAction.DisableBoost)
+                {
+                    Debug.Log($"[{gameObject.name}] Disabling player boost.", this);
+                    playerStateMachine.SetBoostAllowed(false);
+                }
+                else // EnableBoost
+                {
+                    Debug.Log($"[{gameObject.name}] Enabling player boost.", this);
+                    playerStateMachine.SetBoostAllowed(true);
+                }
+                triggeredSomething = true;
+            }
+            else if (boostControlAction != BoostControlAction.DoNothing)
+            {
+                Debug.LogWarning($"[{gameObject.name}] Tried to control boost, but Player has no PlayerStateMachine component!", this);
             }
 
             // Mark as triggered if set to trigger once and we actually did something

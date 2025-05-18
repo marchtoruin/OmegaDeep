@@ -50,6 +50,7 @@ MonoBehaviour:
   spawnInCircle: 1
   minSpawnDistanceFromPlayer: 5
   minDistanceBetweenEnemies: 5
+  forceFlipXOnSpawn: 0
   spawnOnStart: 1
   spawnOverTime: 0
   timeBetweenSpawns: 1

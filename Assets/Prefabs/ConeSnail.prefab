@@ -5237,6 +5237,8 @@ MonoBehaviour:
   moveSpeed: 0.5
   forceMultiplier: 1
   pauseDuration: 1
+  limitMoveDistance: 1
+  maxMoveDistance: 3.18
   surfaceRaycastLength: 0.4
   rotationSmoothSpeed: 10
   raycastVerticalOffset: 0.03

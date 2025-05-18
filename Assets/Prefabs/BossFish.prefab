@@ -316,8 +316,8 @@ MonoBehaviour:
   m_NormalMapDistance: 3
   m_NormalMapQuality: 2
   m_UseNormalMap: 0
-  m_ShadowIntensityEnabled: 0
-  m_ShadowIntensity: 0.75
+  m_ShadowIntensityEnabled: 1
+  m_ShadowIntensity: 1
   m_ShadowVolumeIntensityEnabled: 0
   m_ShadowVolumeIntensity: 0.75
   m_LocalBounds:
@@ -506,7 +506,6 @@ GameObject:
   - component: {fileID: 553923762896846475}
   - component: {fileID: 867828453663158813}
   - component: {fileID: 3609973632966105813}
-  - component: {fileID: 310355011811902706}
   - component: {fileID: 7298433068257413175}
   m_Layer: 6
   m_Name: BossFish
@@ -525,7 +524,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -1, z: 0, w: 0}
   m_LocalPosition: {x: 113.2, y: -357.4, z: 0}
-  m_LocalScale: {x: -2.91, y: 2.91, z: 0}
+  m_LocalScale: {x: -4.52, y: 4.52, z: 0}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 3006662502600836445}
@@ -689,9 +688,9 @@ MonoBehaviour:
   minDistanceToWaypoint: 0.5
   patrolPointWaitTime: 1.5
   isBoss: 1
-  bossHealthMultiplier: 3
-  bossSpeedMultiplier: 6
-  bossScaleMultiplier: 2
+  bossHealthMultiplier: 15
+  bossSpeedMultiplier: 3
+  bossScaleMultiplier: 1
   chargeWindupTime: 3
   chargeSpeed: 25
   chargeDuration: 2
@@ -721,18 +720,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 10
   showDebugMessages: 0
-  isBoss: 1
-  bossHealthMultiplier: 5
-  bossHealthBarColor: {r: 0.82210237, g: 0.003323746, b: 0.09727188, a: 1}
-  bossHealthBarScale: 1.5
+  bossHealthBarColor: {r: 0.0039215437, g: 0.791422, b: 0.8235294, a: 1}
+  bossHealthBarScale: 0.8
   bossMaxDamagePercent: 0.2
-  bossDamageMultiplier: 2
+  bossDamageMultiplier: 3
   healthBarFill: {fileID: 7432766315989690391}
   healthBarObject: {fileID: 2376334834965807932}
   healthBarVisibilityDuration: 3
   alwaysShowHealthBar: 0
   damageEffectPrefab: {fileID: 0}
   impactSound: {fileID: 0}
+  respawnOnDeath: 0
+  respawnDelay: 10
 --- !u!95 &553923762896846475
 Animator:
   serializedVersion: 5
@@ -788,55 +787,6 @@ MonoBehaviour:
   playerLayerMask:
     serializedVersion: 2
     m_Bits: 128
---- !u!114 &310355011811902706
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6789993321906208280}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6a4dab3e25a4ec841bedf35bd4e65ec5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  showDebugGizmos: 1
-  artworkFacesRight: 1
-  playerDetectionRange: 5
-  aggroRange: 8
-  maxAggroTime: 8
-  obstacleLayer:
-    serializedVersion: 2
-    m_Bits: 0
-  basePatrolSpeed: 2
-  baseChaseSpeed: 4
-  rotationSpeed: 3
-  minDistanceToPlayer: 1
-  useRandomPatrolPoints: 1
-  patrolRadius: 5
-  maxRandomPatrolPoints: 4
-  explicitPatrolPoints: []
-  minDistanceToWaypoint: 0.5
-  patrolPointWaitTime: 1.5
-  isBoss: 0
-  bossHealthMultiplier: 3
-  bossSpeedMultiplier: 1.5
-  bossScaleMultiplier: 2
-  chargeWindupTime: 1
-  chargeSpeed: 10
-  chargeDuration: 1
-  chargeDamageMultiplier: 2
-  postChargeWanderDuration: 0.75
-  postChargeWanderSpeed: 1.5
-  bossChargeSound:
-    Guid:
-      Data1: -1582179123
-      Data2: 1194596944
-      Data3: 782375328
-      Data4: 1011513636
-    Path: event:/BossChargeGrowl
-  aggroToChargeDelay: 2
-  chargeCooldown: 10
 --- !u!114 &7298433068257413175
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -31,6 +31,7 @@ public class CameraPan : MonoBehaviour
     private Camera mainCamera;
     private bool hasTriggered = false;
     private Coroutine activePanCoroutine = null;
+    private PlayerStateMachine playerStateMachine = null; // Cache the player's state machine
     private const float TARGET_REACH_THRESHOLD = 0.1f; // How close is close enough
 
     void Start()
@@ -55,6 +56,14 @@ public class CameraPan : MonoBehaviour
     {
         if (mainCameraFollow != null && mainCamera != null && other.CompareTag("Player") && activePanCoroutine == null)
         {
+            // Try to get the player state machine
+            playerStateMachine = other.GetComponent<PlayerStateMachine>();
+            if (playerStateMachine == null)
+            {
+                Debug.LogError($"[{gameObject.name}] Player entered trigger but has no PlayerStateMachine component! Cannot control player state.", other.gameObject);
+                return; // Don't start sequence if we can't control player
+            }
+
             if (triggerOnce && hasTriggered) { return; }
 
             Debug.Log($"Player entered {gameObject.name}. Starting camera pan sequence.", this);
@@ -66,6 +75,9 @@ public class CameraPan : MonoBehaviour
 
     IEnumerator DoCameraPanSequence()
     {
+        // --- 0. Enter Player Cutscene State --- 
+        playerStateMachine?.EnterCutsceneState(); // Tell state machine player can't move
+
         // --- 1. Disable CameraFollow ---
         if (disableCameraFollow && mainCameraFollow.enabled)
         {
@@ -183,6 +195,11 @@ public class CameraPan : MonoBehaviour
              Debug.Log($"[{gameObject.name}] Re-enabling CameraFollow script after return pan.");
              mainCameraFollow.enabled = true;
         }
+
+        // --- 5b. Restore Player Control --- 
+        // Transition player back to a controllable state (e.g., Idle)
+        // The Idle state will handle re-enabling necessary components like movement.
+        playerStateMachine?.ChangeState(new PlayerIdleState(playerStateMachine)); 
 
         // --- 6. Finish ---
         Debug.Log($"[{gameObject.name}] Camera pan sequence complete.");

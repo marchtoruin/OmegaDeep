@@ -61,8 +61,8 @@ MonoBehaviour:
   m_NormalMapDistance: 3
   m_NormalMapQuality: 2
   m_UseNormalMap: 0
-  m_ShadowIntensityEnabled: 0
-  m_ShadowIntensity: 0.75
+  m_ShadowIntensityEnabled: 1
+  m_ShadowIntensity: 1
   m_ShadowVolumeIntensityEnabled: 0
   m_ShadowVolumeIntensity: 0.75
   m_LocalBounds:
@@ -371,7 +371,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -1, z: 0, w: 0}
   m_LocalPosition: {x: -10.41, y: 41.9629, z: 0}
-  m_LocalScale: {x: -2.237, y: 2.237, z: 0}
+  m_LocalScale: {x: 2.237, y: 2.237, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3509660813369097734}
@@ -531,6 +531,8 @@ MonoBehaviour:
   alwaysShowHealthBar: 0
   damageEffectPrefab: {fileID: 0}
   impactSound: {fileID: 0}
+  respawnOnDeath: 1
+  respawnDelay: 10
 --- !u!95 &2207591534212580816
 Animator:
   serializedVersion: 5
@@ -582,7 +584,7 @@ MonoBehaviour:
   damageAmount: 10
   showDebugInfo: 0
   repulsionCheckDistance: 1.5
-  repulsionForce: 5
+  repulsionForce: 1
   playerLayerMask:
     serializedVersion: 2
     m_Bits: 128
@@ -598,36 +600,43 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a4dab3e25a4ec841bedf35bd4e65ec5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerDetectionRange: 5
+  showDebugGizmos: 1
+  artworkFacesRight: 0
+  playerDetectionRange: 7
   aggroRange: 8
+  maxAggroTime: 8
   obstacleLayer:
     serializedVersion: 2
-    m_Bits: 0
-  showDebugGizmos: 1
-  patrolSpeed: 2
-  chaseSpeed: 4
-  rotationSpeed: 3
-  minDistanceToWaypoint: 0.5
+    m_Bits: 256
+  basePatrolSpeed: 4
+  baseChaseSpeed: 7
+  rotationSpeed: 5
   minDistanceToPlayer: 1
-  bodyType: 0
-  collisionDetectionMode: 1
-  patrolPoints: []
-  patrolRadius: 5
-  patrolPointWaitTime: 1.5
   useRandomPatrolPoints: 1
+  patrolRadius: 10
   maxRandomPatrolPoints: 4
-  artworkFacesRight: 1
-  debugOrientation: 0
-  collisionAvoidanceRadius: 1.5
-  collisionAvoidanceForce: 5
-  collisionLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  raycastSpacing: 0.5
-  chargeCooldown: 10
-  chargeSpeedMultiplier: 2.5
-  chargeDuration: 1
+  explicitPatrolPoints: []
+  minDistanceToWaypoint: 5
+  patrolPointWaitTime: 1.5
+  isBoss: 0
+  bossHealthMultiplier: 3
+  bossSpeedMultiplier: 1.5
+  bossScaleMultiplier: 2
   chargeWindupTime: 0.5
+  chargeSpeed: 10
+  chargeDuration: 1
+  chargeDamageMultiplier: 2
+  postChargeWanderDuration: 0.75
+  postChargeWanderSpeed: 1.5
+  bossChargeSound:
+    Guid:
+      Data1: 0
+      Data2: 0
+      Data3: 0
+      Data4: 0
+    Path: 
+  aggroToChargeDelay: 2
+  chargeCooldown: 10
 --- !u!1 &5963504577378188210
 GameObject:
   m_ObjectHideFlags: 0
@@ -766,8 +775,8 @@ MonoBehaviour:
   m_NormalMapDistance: 3
   m_NormalMapQuality: 2
   m_UseNormalMap: 0
-  m_ShadowIntensityEnabled: 0
-  m_ShadowIntensity: 0.75
+  m_ShadowIntensityEnabled: 1
+  m_ShadowIntensity: 1
   m_ShadowVolumeIntensityEnabled: 0
   m_ShadowVolumeIntensity: 0.75
   m_LocalBounds:
