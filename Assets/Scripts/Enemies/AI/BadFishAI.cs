@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using FMODUnity; // <-- Add FMOD namespace
+using UnityEngine.Events; // Added this line
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(badFishHealth))] // Ensure health component exists
@@ -52,6 +53,9 @@ public class BadFishAI : MonoBehaviour
     [SerializeField] private float aggroToChargeDelay = 2f; // Delay after becoming aggro before first charge
     [SerializeField] private float chargeCooldown = 5f; // Delay between charges
 
+    [Header("Events")] // Added Header for events
+    public UnityEvent OnFishActuallyDied; // Added this event
+
     #endregion
 
     #region State
@@ -84,6 +88,7 @@ public class BadFishAI : MonoBehaviour
 
     private GameObject player;
     private bool foundPlayer = false; // Flag to track if player is found
+    private bool hasActuallyDied = false; // Flag to ensure death event only fires once
 
     #endregion
 
@@ -849,6 +854,21 @@ public class BadFishAI : MonoBehaviour
         // {
         //     ChangeState(FishState.Flee);
         // }
+
+        // If health drops to 0 or below, and we haven't already processed death
+        if (currentHealth <= 0 && !hasActuallyDied)
+        {
+            hasActuallyDied = true; // Mark as died to prevent multiple triggers
+            OnFishActuallyDied.Invoke(); // Fire the death event
+            Debug.Log($"[{gameObject.name}] OnHealthChanged: Health <= 0. Invoked OnFishActuallyDied. hasActuallyDied = {hasActuallyDied}");
+
+            // Optional: You might want to also put the fish into a "Dead" state here
+            // or disable its AI functions, though the actual disabling/destruction
+            // of the GameObject is likely handled by badFishHealth.cs or another script.
+            // For example:
+            // ChangeState(FishState.Stunned); // Or a new FishState.Dead
+            // this.enabled = false; // Disable the AI script
+        }
     }
 
      // Reset state, typically called on player respawn
@@ -869,6 +889,10 @@ public class BadFishAI : MonoBehaviour
 
          // Reset velocity
          if (rb != null) rb.velocity = Vector2.zero;
+
+         // ADDED: Reset the hasActuallyDied flag when the AI is reset
+         hasActuallyDied = false; 
+         Debug.Log($"[{gameObject.name}] ResetToInitialState: hasActuallyDied reset to false.");
 
          // Re-start initial cooldown if boss
          if (isBoss)

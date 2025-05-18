@@ -287,7 +287,7 @@ MonoBehaviour:
       Data2: 1311728768
       Data3: 806586526
       Data4: -1817686224
-    Path: event:/PlayerHurt
+    Path: event:/Player Sounds/PlayerHurt
   Event: 
   EventPlayTrigger: 5
   EventStopTrigger: 0
@@ -10512,7 +10512,7 @@ MonoBehaviour:
       Data2: 1196301617
       Data3: -245717346
       Data4: 628520838
-    Path: event:/WaterSloosh
+    Path: event:/Player Movement/WaterSloosh
   playerSprite: {fileID: 3096630479046849933}
   armAimScript: {fileID: 1937576815117195708}
   boostSpeed: 40
@@ -10554,14 +10554,14 @@ MonoBehaviour:
       Data2: 1086024692
       Data3: -1857172349
       Data4: -992460169
-    Path: event:/Arboost
+    Path: event:/Player Movement/Arboost
   boostStopEvent:
     Guid:
       Data1: 292455184
       Data2: 1076654212
       Data3: -1713707107
       Data4: -433080960
-    Path: event:/Airboost_cutoff
+    Path: event:/Player Movement/Airboost_cutoff
   boostKey: 32
   eventPoolSize: 3
   instanceTTL: 3
@@ -10643,7 +10643,7 @@ MonoBehaviour:
       Data2: 1308299425
       Data3: 1553533078
       Data4: 1140940655
-    Path: event:/Boost_electrical_failure
+    Path: event:/Player Movement/Boost_electrical_failure
   boostDisableSpurtParticles: {fileID: 5230568955312771199}
   boostDisableAnimationTrigger: BoostMalfunction
   boostDisableEffectCooldown: 2

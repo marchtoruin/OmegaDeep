@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
+using UnityEngine.Events;
 
 public class DestructibleRock : MonoBehaviour
 {
@@ -19,6 +20,10 @@ public class DestructibleRock : MonoBehaviour
     // Add these variables for integration with your existing system
     [SerializeField] private int health = 6;
     private bool isDestroyed = false;
+
+    // Event to signal when the rock is actually destroyed (health reaches zero)
+    [Header("Events")]
+    public UnityEvent OnRockActuallyDestroyed;
 
     private void Awake()
     {
@@ -147,6 +152,11 @@ public class DestructibleRock : MonoBehaviour
         
         // Save to PlayerPrefs for extra persistence
         SaveDestroyedRocksData();
+        
+        // Invoke the event to signal that the rock has just been destroyed.
+        // FMOD or other systems should listen to this specific event
+        // instead of relying on OnDisable or SetActive(false) generally.
+        OnRockActuallyDestroyed.Invoke();
         
         // Actually destroy or disable the rock
         gameObject.SetActive(false);

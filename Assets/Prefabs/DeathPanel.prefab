@@ -484,7 +484,7 @@ MonoBehaviour:
       Data2: 1310634289
       Data3: 1055876028
       Data4: -1587504210
-    Path: event:/DeathYell
+    Path: event:/Player Sounds/DeathYell
   Event: 
   EventPlayTrigger: 1
   EventStopTrigger: 0

@@ -519,8 +519,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 10
   showDebugMessages: 0
-  isBoss: 0
-  bossHealthMultiplier: 3
   bossHealthBarColor: {r: 1, g: 0.2, b: 0.2, a: 1}
   bossHealthBarScale: 1.5
   bossMaxDamagePercent: 0.2
@@ -689,7 +687,7 @@ MonoBehaviour:
       Data2: 1245528803
       Data3: -149591663
       Data4: 854363689
-    Path: event:/EnemyHit
+    Path: event:/Enemy Sounds/EnemyHit
   Event: 
   EventPlayTrigger: 0
   EventStopTrigger: 0

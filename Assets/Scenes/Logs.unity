@@ -401,7 +401,7 @@ MonoBehaviour:
       Data2: 1141397760
       Data3: 2021695649
       Data4: -1070568341
-    Path: event:/AmbientBubbles
+    Path: event:/Player Movement/AmbientBubbles
   Event: 
   EventPlayTrigger: 1
   EventStopTrigger: 0
@@ -432,7 +432,7 @@ MonoBehaviour:
       Data2: 1101786656
       Data3: -1296494693
       Data4: 93832221
-    Path: event:/Leve1Music
+    Path: event:/Music/Leve1Music
   Event: 
   EventPlayTrigger: 1
   EventStopTrigger: 0
@@ -478,7 +478,7 @@ MonoBehaviour:
       Data2: 1305069320
       Data3: 1226628520
       Data4: -1775220350
-    Path: event:/Log1Music
+    Path: event:/Music/Log1Music
   Event: 
   EventPlayTrigger: 1
   EventStopTrigger: 2
@@ -669,7 +669,7 @@ MonoBehaviour:
       Data2: 1117729971
       Data3: -985482598
       Data4: 1726158780
-    Path: event:/StartButtonClick
+    Path: event:/UI Sounds/StartButtonClick
   Event: 
   EventPlayTrigger: 0
   EventStopTrigger: 0
@@ -1095,7 +1095,7 @@ MonoBehaviour:
       Data2: 1151771259
       Data3: -151750747
       Data4: -1645198954
-    Path: event:/Log1
+    Path: event:/Dialogue/Log1
   Event: 
   EventPlayTrigger: 1
   EventStopTrigger: 12

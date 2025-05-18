@@ -210,7 +210,7 @@ MonoBehaviour:
       Data2: 1296581986
       Data3: -1765827421
       Data4: -555568377
-    Path: event:/getOxygen
+    Path: event:/Player Sounds/getOxygen
 --- !u!1 &9154738592957446044
 GameObject:
   m_ObjectHideFlags: 0

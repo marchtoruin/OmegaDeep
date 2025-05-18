@@ -464,7 +464,7 @@ MonoBehaviour:
       Data2: 1245528803
       Data3: -149591663
       Data4: 854363689
-    Path: event:/EnemyHit
+    Path: event:/Enemy Sounds/EnemyHit
   Event: 
   EventPlayTrigger: 0
   EventStopTrigger: 0
@@ -703,7 +703,7 @@ MonoBehaviour:
       Data2: 1268811464
       Data3: -86840444
       Data4: 1532525650
-    Path: event:/BossDeathGrowl
+    Path: event:/Enemy Sounds/BossDeathGrowl
   aggroToChargeDelay: 2
   chargeCooldown: 10
 --- !u!114 &5048229559482447253
@@ -806,7 +806,7 @@ MonoBehaviour:
       Data2: 1268811464
       Data3: -86840444
       Data4: 1532525650
-    Path: event:/BossDeathGrowl
+    Path: event:/Enemy Sounds/BossDeathGrowl
   Event: 
   EventPlayTrigger: 12
   EventStopTrigger: 0

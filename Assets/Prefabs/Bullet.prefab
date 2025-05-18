@@ -294,7 +294,7 @@ MonoBehaviour:
       Data2: 1204777019
       Data3: 377185153
       Data4: -1148573507
-    Path: event:/BulletLaser
+    Path: event:/Gun sounds/BulletLaser
   Event: 
   EventPlayTrigger: 1
   EventStopTrigger: 0
